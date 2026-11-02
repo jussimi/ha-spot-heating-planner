@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
-from custom_components.spot_heating_planner.prices import (
+from custom_components.spot_heating_planner.sources.prices import (
     FORMATS,
     AttributePrices,
     NordPoolAction,

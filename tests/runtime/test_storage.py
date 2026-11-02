@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.spot_heating_planner.core.learning import StepSample
-from custom_components.spot_heating_planner.storage import Memory, SpaceStore
+from custom_components.spot_heating_planner.runtime.storage import Memory, SpaceStore
 
 
 def sample() -> StepSample:

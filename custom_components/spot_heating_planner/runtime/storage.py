@@ -10,15 +10,15 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, STORAGE_VERSION
-from .core import learning
+from ..const import DOMAIN, STORAGE_VERSION
+from ..core import learning
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from homeassistant.core import HomeAssistant
 
-    from .core.learning import StepSample
+    from ..core.learning import StepSample
 
 SAVE_DELAY_SECONDS = 60
 """Coalesce saves: the steps change every 15 minutes, not every second."""

@@ -31,6 +31,7 @@ ignore = [
     "ISC001",  # conflicts with the formatter
     "CPY001",  # the LICENSE file covers copyright
     "ERA001",  # flags formula comments such as "k = -ln(a)" as dead code
+    "TID252",  # relative imports keep the integration independent of its folder name
 ]
 
 [tool.ruff.lint.per-file-ignores]

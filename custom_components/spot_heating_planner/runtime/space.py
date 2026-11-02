@@ -28,8 +28,7 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import readings
-from .const import (
+from ..const import (
     CONF_CURRENCY,
     CONF_ENERGY_SENSORS,
     CONF_HEATERS,
@@ -49,19 +48,20 @@ from .const import (
     PRICE_SOURCE_NORDPOOL_ACTION,
     TOMORROW_PRICES_FROM_HOUR,
 )
-from .core import calibration, humidity, learning, safety, sensors
-from .core.config import Config
-from .core.control import Decision, decide
-from .core.planner import Inputs, Plan, plan_hour, thermostat
-from .core.steps import OpenStep, is_boundary
-from .forecast import fetch_forecast
-from .prices import (
+from ..core import calibration, humidity, learning, safety, sensors
+from ..core.config import Config
+from ..core.control import Decision, decide
+from ..core.planner import Inputs, Plan, plan_hour, thermostat
+from ..core.steps import OpenStep, is_boundary
+from ..sources.forecast import fetch_forecast
+from ..sources.prices import (
     FORMATS,
     AttributePrices,
     NordPoolAction,
     PriceSource,
     tomorrow_known,
 )
+from . import readings
 from .storage import Memory, SpaceStore
 
 if TYPE_CHECKING:
@@ -70,8 +70,8 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-    from .core.learning import RoomChoice, RoomEstimate
-    from .core.planner import ForecastPoint
+    from ..core.learning import RoomChoice, RoomEstimate
+    from ..core.planner import ForecastPoint
 
 LOGGER = logging.getLogger(__name__)
 STUCK_CHECK_STEPS = 8

@@ -6,7 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant, State
 from homeassistant.util import dt as dt_util
 
-from custom_components.spot_heating_planner import readings
+from custom_components.spot_heating_planner.runtime import readings
 
 
 def test_celsius_passes_through() -> None:

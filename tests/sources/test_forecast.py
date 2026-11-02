@@ -9,7 +9,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 from custom_components.spot_heating_planner.core import humidity
-from custom_components.spot_heating_planner.forecast import fetch_forecast
+from custom_components.spot_heating_planner.sources.forecast import fetch_forecast
 
 WEATHER = "weather.home"
 

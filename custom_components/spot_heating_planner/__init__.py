@@ -6,7 +6,7 @@ minute and its entities (added in a later part) follow it.
 
 from typing import TYPE_CHECKING
 
-from .space import Space
+from .runtime.space import Space
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry

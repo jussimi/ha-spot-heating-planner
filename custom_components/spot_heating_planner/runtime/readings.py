@@ -15,7 +15,7 @@ from homeassistant.const import (
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util.unit_conversion import EnergyConverter, TemperatureConverter
 
-from .const import MEDIAN_WINDOW
+from ..const import MEDIAN_WINDOW
 
 if TYPE_CHECKING:
     from datetime import datetime

@@ -12,8 +12,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .core import humidity
-from .core.planner import ForecastPoint
+from ..core import humidity
+from ..core.planner import ForecastPoint
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant

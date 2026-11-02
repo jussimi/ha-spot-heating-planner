@@ -29,12 +29,12 @@ from custom_components.spot_heating_planner.const import (
     PRICE_SOURCE_NORDPOOL_ACTION,
 )
 from custom_components.spot_heating_planner.core.config import Config, ManualRoom
-from custom_components.spot_heating_planner.prices import (
+from custom_components.spot_heating_planner.runtime.space import Space, price_source
+from custom_components.spot_heating_planner.sources.prices import (
     FORMATS,
     AttributePrices,
     NordPoolAction,
 )
-from custom_components.spot_heating_planner.space import Space, price_source
 
 HEATER = "switch.heater"
 ENERGY = "sensor.heater_energy"
