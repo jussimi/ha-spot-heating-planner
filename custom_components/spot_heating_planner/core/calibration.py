@@ -6,7 +6,7 @@ waiting for them to happen by chance, the run heats for
 calibration_heat_minutes and then lets the space coast for
 calibration_coast_minutes, starting in the cheapest hour within the
 lookahead. The safety rules stay in charge throughout; during the coast,
-frost and critical humidity still heat (see `during_coast_heat_anyway`).
+the minimum and critical humidity still heat (see `during_coast_heat_anyway`).
 """
 
 from datetime import datetime, timedelta
@@ -57,7 +57,7 @@ def phase(now: datetime, start: datetime, calibration: Calibration) -> Phase:
 def during_coast_heat_anyway(mode: str) -> bool:
     """Whether the thermostat's reason to heat overrides the coast.
 
-    Hard wishes (frost, critical humidity, an override) protect the space
+    Hard wishes (the minimum, critical humidity, an override) protect the space
     and win; soft ones wait until the run is over.
     """
-    return mode in {"frost", "humidity_critical", "override"}
+    return mode in {"minimum", "humidity_critical", "override"}

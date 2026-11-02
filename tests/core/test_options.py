@@ -23,7 +23,7 @@ def test_options_land_in_their_groups() -> None:
 
 def test_contradicting_options_are_refused() -> None:
     with pytest.raises(ConfigError):
-        config_from_options({"frost_limit": 6.0})  # above the 3 deg C minimum
+        config_from_options({"emergency_temperature": 6.0})  # above the 3 deg C minimum
 
 
 def test_every_setting_points_at_a_real_field() -> None:

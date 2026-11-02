@@ -1,4 +1,4 @@
-"""Spot Heating Planner: frost and moisture protection heating on spot prices.
+"""Spot Heating Planner: keeps a space warm and dry enough on spot prices.
 
 Each config entry is one heated space. Its `Space` runs the planner every
 minute and its entities follow it.

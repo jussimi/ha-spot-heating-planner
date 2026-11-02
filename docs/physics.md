@@ -254,7 +254,7 @@ wishes:
 
 | Wish | Kind | Lower limit |
 |---|---|---|
-| Frost | hard | minimum temperature + margin |
+| Minimum | hard | minimum temperature + margin |
 | Critical humidity | hard | warm enough that RH stays below critical |
 | Override | hard | the override target, while it runs |
 | Humidity | soft | warm enough that RH stays at the target |

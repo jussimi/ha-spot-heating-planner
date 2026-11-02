@@ -73,7 +73,7 @@ async def test_a_setting_is_kept_and_used(
         blocking=True,
     )
     assert garage.options["min_temperature"] == 9.0
-    assert state(hass, "sensor.garage_mode") == "frost"  # 8 deg C is now too cold
+    assert state(hass, "sensor.garage_mode") == "minimum"  # 8 deg C is now too cold
     assert state(hass, HEATER) == STATE_ON
 
 
@@ -84,10 +84,10 @@ async def test_a_contradicting_setting_is_refused(
         await hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": "number.garage_frost_limit", "value": 8.0},
+            {"entity_id": "number.garage_emergency_temperature", "value": 8.0},
             blocking=True,
         )
-    assert "frost_limit" not in garage.options
+    assert "emergency_temperature" not in garage.options
 
 
 async def test_override_button_heats(

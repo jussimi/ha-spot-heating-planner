@@ -37,3 +37,10 @@ def test_max_temperature_blocks_until_one_degree_below() -> None:
 def test_override_raises_the_maximum() -> None:
     limits = replace(CFG.limits, override_temperature=18)
     assert check(16, SafetyState(), limits, override_active=True) is None
+
+
+def test_emergency_temperature_may_be_below_freezing() -> None:
+    limits = replace(CFG.limits, min_temperature=-10, emergency_temperature=-15)
+    assert check(-12, SafetyState(), limits, override_active=False) is None
+    emergency = check(-16, SafetyState(), limits, override_active=False)
+    assert emergency == EMERGENCY

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Lämmitettävä tila",
-        "description": "Tila, joka pidetään pakkaselta ja kosteudelta suojassa, sekä sen lämmittimet ja anturit.",
+        "description": "Tila, joka pidetään minimilämpötilan yläpuolella ja kuivana, sekä sen lämmittimet ja anturit.",
         "data": {
           "name": "Nimi",
           "heaters": "Lämmittimet",
@@ -16,7 +16,7 @@
         },
         "data_description": {
           "heaters": "Kytkimet, pistorasiat tai muut päälle/pois-entiteetit, joilla lämmittimet ohjataan.",
-          "indoor_humidity": "Valinnainen. Ilman sitä lämmitys suojaa vain pakkaselta.",
+          "indoor_humidity": "Valinnainen. Ilman sitä lämmitys pitää vain minimilämpötilan.",
           "outdoor_temperature": "Valinnainen, mutta tilan oppiminen tarvitsee sen.",
           "outdoor_humidity": "Valinnainen. Antaa suunnittelijan lämmittää tilaa ennen kuin kostea ulkoilma tulee.",
           "energy_sensors": "Valinnaiset lämmittimien kWh-laskurit. Tarkentavat oppimista ja kustannuksia.",
@@ -38,7 +38,7 @@
         },
         "data_description": {
           "heaters": "Kytkimet, pistorasiat tai muut päälle/pois-entiteetit, joilla lämmittimet ohjataan.",
-          "indoor_humidity": "Valinnainen. Ilman sitä lämmitys suojaa vain pakkaselta.",
+          "indoor_humidity": "Valinnainen. Ilman sitä lämmitys pitää vain minimilämpötilan.",
           "outdoor_temperature": "Valinnainen, mutta tilan oppiminen tarvitsee sen.",
           "outdoor_humidity": "Valinnainen. Antaa suunnittelijan lämmittää tilaa ennen kuin kostea ulkoilma tulee.",
           "energy_sensors": "Valinnaiset lämmittimien kWh-laskurit. Tarkentavat oppimista ja kustannuksia.",
@@ -85,7 +85,7 @@
       "options": {
         "nordpool_action": "Nord Pool -integraatio",
         "entity": "Entiteetti, jossa on hintalista",
-        "none": "Ei hintoja (vain pakkas- ja kosteussuojaus)"
+        "none": "Ei hintoja (vain minimilämpötila ja kosteus)"
       }
     },
     "price_format": {
@@ -100,11 +100,11 @@
         "name": "Tila",
         "state": {
           "sensor_fault": "Anturivika",
-          "emergency": "Pakkashälytys",
+          "emergency": "Alle hätälämpötilan",
           "max_temp": "Maksimissa",
           "calibrating": "Kalibroidaan",
           "override": "Ohitus",
-          "frost": "Pakkassuojaus",
+          "minimum": "Pitää minimin",
           "humidity_critical": "Kriittinen kosteus",
           "humidity": "Kosteus",
           "dew_point": "Kastepiste",
@@ -179,8 +179,8 @@
       "max_temperature": {
         "name": "Maksimilämpötila"
       },
-      "frost_limit": {
-        "name": "Pakkasraja"
+      "emergency_temperature": {
+        "name": "Hätälämpötila"
       },
       "override_temperature": {
         "name": "Ohituksen lämpötila"

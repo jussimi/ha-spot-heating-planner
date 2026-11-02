@@ -31,9 +31,9 @@ def test_defaults_are_valid() -> None:
 @pytest.mark.parametrize(
     "make",
     [
-        lambda: Limits(frost_limit=5.0),  # above min_temperature 3
+        lambda: Limits(emergency_temperature=5.0),  # above min_temperature 3
         lambda: Limits(min_temperature=14.5),  # 14.5 + margin 1 >= max 15
-        lambda: Limits(override_temperature=0.5),  # below the frost limit
+        lambda: Limits(override_temperature=0.5),  # below the emergency temperature
         lambda: Limits(thermostat_band=-1.0),
         lambda: Humidity(target_warm=90.0),  # above target_max 80
         lambda: Humidity(slope=-1.0),

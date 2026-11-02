@@ -17,7 +17,7 @@ from custom_components.spot_heating_planner.core.safety import SafetyResult
 from .example import NOW
 
 IDLE = ThermostatDecision("idle", heat=False)
-FROST = ThermostatDecision("frost", heat=True)
+MINIMUM = ThermostatDecision("minimum", heat=True)
 HUMID = ThermostatDecision("humidity", heat=True)
 
 
@@ -51,11 +51,11 @@ def test_calibration_heats_then_coasts() -> None:
     assert coast == Decision(CALIBRATING, heat=False)
 
 
-def test_frost_interrupts_the_coast() -> None:
+def test_the_minimum_interrupts_the_coast() -> None:
     decision = decide(
-        NOW, safety=None, calibration=Phase.COAST, plan=None, thermostat=FROST
+        NOW, safety=None, calibration=Phase.COAST, plan=None, thermostat=MINIMUM
     )
-    assert decision == Decision("frost", heat=True)
+    assert decision == Decision("minimum", heat=True)
 
 
 def test_plan_heats_until_its_minute() -> None:
@@ -68,13 +68,13 @@ def test_plan_heats_until_its_minute() -> None:
 
 
 def test_thermostat_without_a_plan() -> None:
-    decision = decide(NOW, safety=None, calibration=None, plan=None, thermostat=FROST)
-    assert decision == Decision("frost", heat=True)
+    decision = decide(NOW, safety=None, calibration=None, plan=None, thermostat=MINIMUM)
+    assert decision == Decision("minimum", heat=True)
 
 
 def test_finished_calibration_hands_over() -> None:
     plan = plan_heating_for(0)
     decision = decide(
-        NOW, safety=None, calibration=Phase.DONE, plan=plan, thermostat=FROST
+        NOW, safety=None, calibration=Phase.DONE, plan=plan, thermostat=MINIMUM
     )
     assert decision == Decision("preheat", heat=False)

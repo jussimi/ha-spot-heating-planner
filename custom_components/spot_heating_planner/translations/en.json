@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Heated space",
-        "description": "The space to keep frost-free and dry, its heaters and sensors.",
+        "description": "The space to keep above its minimum and dry, its heaters and sensors.",
         "data": {
           "name": "Name",
           "heaters": "Heaters",
@@ -16,7 +16,7 @@
         },
         "data_description": {
           "heaters": "Switches, plugs or other on/off entities that power the heaters.",
-          "indoor_humidity": "Optional. Without it, heating only protects against frost.",
+          "indoor_humidity": "Optional. Without it, heating only keeps the minimum temperature.",
           "outdoor_temperature": "Optional, but learning the room needs it.",
           "outdoor_humidity": "Optional. Lets the planner warm the space before moist outside air arrives.",
           "energy_sensors": "Optional kWh counters of the heaters. Make learning and costs more accurate.",
@@ -38,7 +38,7 @@
         },
         "data_description": {
           "heaters": "Switches, plugs or other on/off entities that power the heaters.",
-          "indoor_humidity": "Optional. Without it, heating only protects against frost.",
+          "indoor_humidity": "Optional. Without it, heating only keeps the minimum temperature.",
           "outdoor_temperature": "Optional, but learning the room needs it.",
           "outdoor_humidity": "Optional. Lets the planner warm the space before moist outside air arrives.",
           "energy_sensors": "Optional kWh counters of the heaters. Make learning and costs more accurate.",
@@ -85,7 +85,7 @@
       "options": {
         "nordpool_action": "Nord Pool integration",
         "entity": "An entity with a price list",
-        "none": "No prices (frost and moisture protection only)"
+        "none": "No prices (minimum temperature and moisture only)"
       }
     },
     "price_format": {
@@ -100,11 +100,11 @@
         "name": "Mode",
         "state": {
           "sensor_fault": "Sensor fault",
-          "emergency": "Frost emergency",
+          "emergency": "Below emergency temperature",
           "max_temp": "At maximum",
           "calibrating": "Calibrating",
           "override": "Override",
-          "frost": "Frost protection",
+          "minimum": "Keeping minimum",
           "humidity_critical": "Critical humidity",
           "humidity": "Humidity",
           "dew_point": "Dew point",
@@ -179,8 +179,8 @@
       "max_temperature": {
         "name": "Maximum temperature"
       },
-      "frost_limit": {
-        "name": "Frost limit"
+      "emergency_temperature": {
+        "name": "Emergency temperature"
       },
       "override_temperature": {
         "name": "Override temperature"

@@ -114,7 +114,7 @@ async def test_thermostat_takes_over_after_calibration(
     for minute in range(30):  # let the median follow the new reading
         await space.async_tick(later + timedelta(minutes=minute))
     assert space.data.room.status == "learning"
-    assert space.data.decision.mode == "frost"
+    assert space.data.decision.mode == "minimum"
     assert heater_is_on(hass)
 
 
@@ -128,7 +128,7 @@ async def test_lost_indoor_sensor_heats(hass: HomeAssistant, space: Space) -> No
     assert heater_is_on(hass)
 
 
-async def test_frost_emergency_heats(hass: HomeAssistant, known_space: Space) -> None:
+async def test_emergency_heats(hass: HomeAssistant, known_space: Space) -> None:
     set_temperatures(hass, indoor="0.5")
     later = minutes_later(31)
     for minute in range(31):
@@ -160,7 +160,7 @@ async def test_override_heats_to_its_target(
 async def test_new_settings_replan(known_space: Space) -> None:
     warmer = replace(known_space.cfg.limits, min_temperature=12.0)
     await known_space.async_set_config(known_space.cfg.with_groups(warmer))
-    assert known_space.data.decision.mode == "frost"
+    assert known_space.data.decision.mode == "minimum"
 
 
 # --- Learning ---------------------------------------------------------------------

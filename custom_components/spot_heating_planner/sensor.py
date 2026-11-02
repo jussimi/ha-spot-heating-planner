@@ -39,7 +39,7 @@ MODES = [
     "max_temp",
     "calibrating",
     "override",
-    "frost",
+    "minimum",
     "humidity_critical",
     "humidity",
     "dew_point",

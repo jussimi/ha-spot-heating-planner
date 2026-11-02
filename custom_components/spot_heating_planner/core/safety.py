@@ -2,7 +2,7 @@
 
     sensor_fault  no indoor temperature  -> heat; the heaters' own thermostats
                                             cap the temperature
-    emergency     below the frost limit  -> heat at any price
+    emergency     below the emergency temperature -> heat at any price
     max_temp      at the upper limit     -> never heat
 
 These are the only rules with hysteresis (thermostat-style on/off bands).
@@ -59,10 +59,10 @@ def check(
 
 
 def _emergency(t_in: float, limits: Limits, *, active: bool) -> bool:
-    """On below the frost limit, off once emergency_band above it."""
+    """On below the emergency temperature, off once emergency_band above it."""
     if active:
-        return t_in < limits.frost_limit + limits.emergency_band
-    return t_in < limits.frost_limit
+        return t_in < limits.emergency_temperature + limits.emergency_band
+    return t_in < limits.emergency_temperature
 
 
 def _max_blocked(t_in: float, upper: float, limits: Limits, *, active: bool) -> bool:

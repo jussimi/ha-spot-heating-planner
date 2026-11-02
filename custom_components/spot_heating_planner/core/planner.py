@@ -3,7 +3,7 @@
 Every hour of the known price list gets a lower limit, the highest of these
 wishes:
 
-    hard  frost               min_temperature + planner_margin
+    hard  minimum             min_temperature + margin
     hard  humidity_critical   warm enough that RH stays below critical
     hard  override            the override target, while it runs
     soft  humidity            warm enough that RH stays below the target
@@ -160,7 +160,7 @@ def hard_wishes(
     start: datetime, inp: Inputs, dry: humidity.WarmEnough | None, cfg: Config
 ) -> dict[str, float]:
     """Wishes that hold at any price."""
-    wishes = {"frost": cfg.limits.min_temperature + cfg.limits.margin}
+    wishes = {"minimum": cfg.limits.min_temperature + cfg.limits.margin}
     if dry is not None:
         wishes["humidity_critical"] = dry.critical
     if inp.override_until is not None and start < inp.override_until:

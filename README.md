@@ -2,7 +2,8 @@
 
 A Home Assistant integration that keeps an unheated or lightly heated space
 (a garage, storage building, cottage or crawl space) **frost-free and dry at the
-lowest electricity cost.**
+lowest electricity cost.** The minimum temperature is yours to set, below
+freezing too, for a space that only needs to stay dry.
 
 It learns how the space warms and cools, then plans the heating hour by hour on
 spot prices and the weather forecast: it pre-heats in cheap hours so the space
@@ -18,13 +19,13 @@ it.
    calibration run right after setup (an hour of heating, then coasting) gets
    it there within hours, and it keeps refining afterwards. Until then it runs
    as a plain thermostat.
-2. **Plans every hour.** Each hour has a lower limit: the highest of frost
-   protection, critical humidity, a manual override, the humidity target and
+2. **Plans every hour.** Each hour has a lower limit: the highest of the
+   minimum temperature, critical humidity, a manual override, the humidity target and
    the outdoor dew point. The planner finds the cheapest heating that keeps
    every hour above its limit, over all the prices known (up to the end of
    tomorrow).
-3. **Safety first.** A lost indoor sensor heats, a frost emergency heats at any
-   price, and nothing heats above the maximum, whatever the plan says.
+3. **Safety first.** A lost indoor sensor heats, dropping below the emergency
+   temperature heats at any price, and nothing heats above the maximum, whatever the plan says.
 
 The physics and maths are explained in [docs/physics.md](docs/physics.md).
 
@@ -59,7 +60,7 @@ The setup asks three things:
 
 1. **The space:** a name, the heaters, and the sensors.
 2. **Where prices come from:** Nord Pool, an entity with a price list, or none
-   (frost and moisture protection only).
+   (minimum temperature and moisture only).
 3. **The source's details:** for Nord Pool the integration entry, area,
    currency and VAT; for an entity the format and any VAT to add.
 
@@ -75,7 +76,7 @@ Each space is one device with these entities.
 
 | Entity | Meaning |
 |---|---|
-| Mode | Why the space is or isn't heating: frost protection, humidity, preheating, waiting for a cheaper hour, … Its attributes hold the plan hour by hour. |
+| Mode | Why the space is or isn't heating: keeping the minimum, humidity, preheating, waiting for a cheaper hour, … Its attributes hold the plan hour by hour. |
 | Next heating | Start of the next planned heating |
 | Planned heating / cost, next 24 h | What the plan will do |
 | Spot price | This hour's price as the planner sees it (c/kWh incl. VAT), with the known hours in its `forecast` attribute |
@@ -91,7 +92,7 @@ leaves the heaters alone.
 
 **Buttons:** start override, cancel override, calibrate.
 
-**Numbers (settings):** minimum and maximum temperature, frost limit, override
+**Numbers (settings):** minimum and maximum temperature, emergency temperature, override
 temperature and length, humidity target (warm and cold), dew point margin,
 price ceiling, fixed energy cost (transfer fee, electricity tax and margin per
 kWh), heater power (used without an energy meter).

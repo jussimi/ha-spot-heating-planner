@@ -43,7 +43,7 @@ def test_phases_follow_the_clock() -> None:
 
 
 def test_only_hard_wishes_interrupt_the_coast() -> None:
-    assert during_coast_heat_anyway("frost")
+    assert during_coast_heat_anyway("minimum")
     assert during_coast_heat_anyway("humidity_critical")
     assert not during_coast_heat_anyway("humidity")
     assert not during_coast_heat_anyway("dew_point")

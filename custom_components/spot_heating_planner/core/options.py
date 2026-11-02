@@ -43,11 +43,11 @@ CENTS_PER_KWH = "c/kWh"
 
 SETTINGS: tuple[Setting, ...] = (
     Setting(key="min_temperature", group="limits", field="min_temperature",
-            minimum=-5, maximum=20, step=0.5, unit=CELSIUS),
+            minimum=-25, maximum=20, step=0.5, unit=CELSIUS),
     Setting(key="max_temperature", group="limits", field="max_temperature",
             minimum=5, maximum=30, step=0.5, unit=CELSIUS),
-    Setting(key="frost_limit", group="limits", field="frost_limit",
-            minimum=-10, maximum=10, step=0.5, unit=CELSIUS),
+    Setting(key="emergency_temperature", group="limits", field="emergency_temperature",
+            minimum=-30, maximum=10, step=0.5, unit=CELSIUS),
     Setting(key="override_temperature", group="limits", field="override_temperature",
             minimum=5, maximum=30, step=0.5, unit=CELSIUS),
     Setting(key="override_hours", group="limits", field="override_hours",

@@ -52,11 +52,12 @@ class Limits:
     override_hours: float = 3.0
     """How long a manual override runs."""
 
-    frost_limit: float = 1.0
-    """Emergency: below this, heat at any price, until emergency_band above."""
+    emergency_temperature: float = 1.0
+    """Emergency: below this, heat at any price, until emergency_band above.
+    May be below freezing, for spaces that only need to stay dry."""
 
     emergency_band: float = 1.0
-    """Emergency heating stops this far above frost_limit."""
+    """Emergency heating stops this far above emergency_temperature."""
 
     max_temp_band: float = 1.0
     """After reaching the maximum, heat again once this far below it."""
@@ -69,16 +70,16 @@ class Limits:
         _validate(
             [
                 (
-                    self.frost_limit < self.min_temperature,
-                    "frost_limit must be below min_temperature",
+                    self.emergency_temperature < self.min_temperature,
+                    "emergency_temperature must be below min_temperature",
                 ),
                 (
                     self.min_temperature + self.margin < self.max_temperature,
                     "min_temperature + margin must be below max_temperature",
                 ),
                 (
-                    self.override_temperature > self.frost_limit,
-                    "override_temperature must be above frost_limit",
+                    self.override_temperature > self.emergency_temperature,
+                    "override_temperature must be above emergency_temperature",
                 ),
                 (self.override_hours > 0, "override_hours must be positive"),
                 (

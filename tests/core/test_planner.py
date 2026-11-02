@@ -29,12 +29,12 @@ def test_warm_dry_space_stays_idle() -> None:
     assert plan.mode == "idle"
 
 
-def test_cold_space_heats_for_frost() -> None:
+def test_cold_space_heats_for_its_minimum() -> None:
     plan = plan_hour(
         inputs(indoor_temperature=3.5, outdoor_temperature=-10), CFG, HEATED_ROOM
     )
     assert plan.minutes > 0
-    assert plan.mode == "frost"
+    assert plan.mode == "minimum"
 
 
 def test_preheats_in_cheap_hours_before_a_long_peak() -> None:
@@ -166,7 +166,7 @@ def test_every_setting_is_configurable() -> None:
         inputs(indoor_temperature=7, outdoor_temperature=0), cfg, HEATED_ROOM
     )
     assert plan.minutes > 0
-    assert plan.mode == "frost"
+    assert plan.mode == "minimum"
 
 
 # --- Outside data: the sensor now, the forecast later -------------------------
@@ -214,7 +214,7 @@ def test_dew_point_wish_starts_before_moist_air_arrives() -> None:
 def test_thermostat_heats_below_the_minimum() -> None:
     decision = thermostat(inputs(indoor_temperature=3.5), CFG, heating=False)
     assert decision.heat
-    assert decision.mode == "frost"
+    assert decision.mode == "minimum"
 
 
 def test_thermostat_keeps_heating_through_its_band() -> None:
@@ -291,3 +291,19 @@ def test_hour_costs_price_each_hour_with_the_fixed_part() -> None:
         assert cost.energy_kwh == pytest.approx(energy)
         expected = energy * (hour.price + CFG.prices.fixed_energy_cost) / 100
         assert cost.cost == pytest.approx(expected)
+
+
+def test_a_minimum_below_freezing_is_kept_too() -> None:
+    # A space that only needs to stay dry: -10 deg C is fine, -12 isn't
+    cfg = CFG.with_groups(
+        replace(CFG.limits, min_temperature=-10, emergency_temperature=-15)
+    )
+    cold = plan_hour(
+        inputs(indoor_temperature=-12, outdoor_temperature=-25), cfg, HEATED_ROOM
+    )
+    fine = plan_hour(
+        inputs(indoor_temperature=-5, outdoor_temperature=-6), cfg, HEATED_ROOM
+    )
+    assert cold.minutes > 0
+    assert cold.mode == "minimum"
+    assert fine.minutes == 0
