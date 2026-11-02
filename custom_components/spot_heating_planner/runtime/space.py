@@ -48,7 +48,7 @@ from ..const import (
     PRICE_SOURCE_NORDPOOL_ACTION,
     TOMORROW_PRICES_FROM_HOUR,
 )
-from ..core import calibration, humidity, learning, safety, sensors
+from ..core import calibration, day_ahead, humidity, learning, safety, sensors
 from ..core.control import Decision, decide
 from ..core.options import config_from_options
 from ..core.planner import (
@@ -71,7 +71,7 @@ from ..sources.prices import (
     PriceSource,
     tomorrow_known,
 )
-from . import readings
+from . import readings, statistics
 from .storage import Memory, SpaceStore
 
 if TYPE_CHECKING:
@@ -88,6 +88,7 @@ LOGGER = logging.getLogger(__name__)
 SUMMARY_HOURS = 24
 """The dashboard's planned heating and cost cover this many hours."""
 CENTS_PER_UNIT = 100.0
+DEFAULT_CURRENCY = "EUR"
 STUCK_CHECK_STEPS = 8
 """How many recent steps the stuck-sensor check looks at (2 hours)."""
 
@@ -211,7 +212,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
         self._last_energy: float | None = None
         self._heating = False
 
-    # --- Lifecycle ----------------------------------------------------------
+    # --- Lifecycle --------------------------------------------------------------------
 
     async def async_start(self) -> None:
         """Load what was learned, then run the first tick and every minute after."""
@@ -238,7 +239,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
     def _on_minute(self, now: datetime) -> None:
         self.hass.async_create_task(self.async_tick(now), eager_start=True)
 
-    # --- Commands from the entities ------------------------------------------
+    # --- Commands from the entities ---------------------------------------------------
 
     async def async_start_override(self, hours: float | None = None) -> None:
         """Hold the override temperature for `hours` (the setting if not given)."""
@@ -288,18 +289,21 @@ class Space(DataUpdateCoordinator[SpaceState]):
         await self._replan(now)
         await self._act(now)
 
-    # --- The tick -------------------------------------------------------------
+    # --- The tick ---------------------------------------------------------------------
 
     async def async_tick(self, now: datetime) -> None:
         """Everything that happens at the start of a minute, in order."""
         self._read_sensors(now)
         if is_boundary(now, self.cfg.learning.step_minutes):
             self._close_step(now)
+        if now.minute == 0:
+            self._record_day_ahead(now)
         if self._is_planning_time(now):
             await self._refresh_outside_data(now)
             await self._replan(now)
         elif self._plan is None and self._room().heated_room is not None:
             await self._replan(now)
+        self._take_day_ahead(now)
 
         self._count_energy(now)
         decision = await self._act(now)
@@ -326,7 +330,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
         ).hour >= TOMORROW_PRICES_FROM_HOUR and not tomorrow_known(self._prices, now)
         return waiting_for_tomorrow and is_boundary(now, self.cfg.learning.step_minutes)
 
-    # --- Reading ----------------------------------------------------------------
+    # --- Reading ----------------------------------------------------------------------
 
     def _read_sensors(self, now: datetime) -> None:
         """Add this minute's readings to the medians.
@@ -388,7 +392,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
         until = self._memory.override_until
         return until if until is not None and now < until else None
 
-    # --- Learning ------------------------------------------------------------
+    # --- Learning ---------------------------------------------------------------------
 
     def _close_step(self, now: datetime) -> None:
         """Finish the step under way, learn from it, and open the next one."""
@@ -429,7 +433,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
     def _room(self) -> RoomChoice:
         return learning.choose(self.cfg, self._estimate)
 
-    # --- Prices, forecast and the plan -----------------------------------------
+    # --- Prices, forecast and the plan ------------------------------------------------
 
     async def _refresh_outside_data(self, now: datetime) -> None:
         if self.prices_from is not None:
@@ -449,7 +453,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
             plan_hour, inputs, self.cfg, heated_room
         )
 
-    # --- Calibration -------------------------------------------------------------
+    # --- Calibration ------------------------------------------------------------------
 
     def _schedule_calibration(self, now: datetime) -> None:
         start = calibration.best_start(self._prices, now, self.cfg.calibration)
@@ -468,7 +472,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
             return None
         return phase
 
-    # --- Deciding and switching ----------------------------------------------------
+    # --- Deciding and switching -------------------------------------------------------
 
     def _decide(self, now: datetime) -> Decision:
         indoor = self._indoor_temperature(now)
@@ -508,7 +512,70 @@ class Space(DataUpdateCoordinator[SpaceState]):
                 domain, action, target={"entity_id": heater}, blocking=True
             )
 
-    # --- Cost ------------------------------------------------------------------------
+    # --- The day-ahead forecast -------------------------------------------------------
+
+    def _take_day_ahead(self, now: datetime) -> None:
+        """Once tomorrow's prices are known, keep tomorrow's plan as forecast."""
+        heated_room = self._room().heated_room
+        if self._plan is None or heated_room is None:
+            return
+        if not tomorrow_known(self._prices, now):
+            return
+        tomorrow_start = dt_util.start_of_local_day(now) + timedelta(days=1)
+        tomorrow = dt_util.as_local(tomorrow_start).date().isoformat()
+        if self._memory.day_ahead_date == tomorrow:
+            return
+        costs = hour_costs(self._plan, heated_room, self.cfg)
+        hours = day_ahead.snapshot(
+            self._plan,
+            costs,
+            start=tomorrow_start,
+            end=tomorrow_start + timedelta(days=1),
+        )
+        self._memory.day_ahead = [
+            h for h in self._memory.day_ahead if h.start < tomorrow_start
+        ] + hours
+        self._memory.day_ahead_date = tomorrow
+        self._store.save_soon(self._memory)
+
+    def _record_day_ahead(self, now: datetime) -> None:
+        """Write the forecast of the hour that just ended into the statistics."""
+        ended = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
+        memory = self._memory
+        forecast = next((h for h in memory.day_ahead if h.start == ended), None)
+        memory.day_ahead = [h for h in memory.day_ahead if h.start > ended]
+        if forecast is None:
+            return
+        memory.day_ahead_energy_total += forecast.energy_kwh
+        memory.day_ahead_cost_total += forecast.cost
+        self._store.save_soon(memory)
+        start = forecast.start
+        for series, hour in (
+            (
+                statistics.DAY_AHEAD_ENERGY,
+                statistics.Hour(
+                    start=start,
+                    value=forecast.energy_kwh,
+                    total=memory.day_ahead_energy_total,
+                ),
+            ),
+            (
+                statistics.day_ahead_cost(self._currency()),
+                statistics.Hour(
+                    start=start, value=forecast.cost, total=memory.day_ahead_cost_total
+                ),
+            ),
+            (
+                statistics.DAY_AHEAD_TEMPERATURE,
+                statistics.Hour(start=start, value=forecast.temperature),
+            ),
+        ):
+            statistics.write_hour(self.hass, self.entry, series, hour)
+
+    def _currency(self) -> str:
+        return str(self.entry.data.get(CONF_CURRENCY, DEFAULT_CURRENCY))
+
+    # --- Cost -------------------------------------------------------------------------
 
     def _count_energy(self, now: datetime) -> None:
         """Add the minute that just ended to the heating energy and cost.

@@ -1,8 +1,14 @@
 {
   "domain": "spot_heating_planner",
   "name": "Spot Heating Planner",
-  "after_dependencies": ["nordpool", "weather"],
-  "codeowners": ["@jussimi"],
+  "after_dependencies": [
+    "nordpool",
+    "recorder",
+    "weather"
+  ],
+  "codeowners": [
+    "@jussimi"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/jussimi/ha-spot-heating-planner",
   "integration_type": "service",

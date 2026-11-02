@@ -2,7 +2,7 @@
 
 Kept in .storage/spot_heating_planner.<entry id>: the logged learning steps,
 a calibration run's start, when a manual override ends, whether control is
-paused, and the heating energy and cost so far.
+paused, the heating energy and cost so far, and the day-ahead forecast.
 """
 
 from dataclasses import dataclass, field
@@ -13,6 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, STORAGE_VERSION
 from ..core import learning
+from ..core.day_ahead import ForecastHour
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -38,6 +39,12 @@ class Memory:
     """Heating cost so far, in currency units incl. fixed costs."""
     energy_total: float = 0.0
     """Heating energy so far, kWh: measured, or estimated without meters."""
+    day_ahead: list[ForecastHour] = field(default_factory=list)
+    """Tomorrow's (and what's left of today's) hours as forecast the day before."""
+    day_ahead_date: str | None = None
+    """The local date (ISO) whose day-ahead forecast has been taken."""
+    day_ahead_energy_total: float = 0.0
+    day_ahead_cost_total: float = 0.0
 
 
 class SpaceStore:
@@ -76,6 +83,10 @@ def _to_json(memory: Memory) -> dict[str, Any]:
         "enabled": memory.enabled,
         "cost_total": memory.cost_total,
         "energy_total": memory.energy_total,
+        "day_ahead": [_forecast_to_json(h) for h in memory.day_ahead],
+        "day_ahead_date": memory.day_ahead_date,
+        "day_ahead_energy_total": memory.day_ahead_energy_total,
+        "day_ahead_cost_total": memory.day_ahead_cost_total,
     }
 
 
@@ -87,6 +98,31 @@ def _from_json(data: dict[str, Any]) -> Memory:
         enabled=bool(data.get("enabled", True)),
         cost_total=float(data.get("cost_total", 0.0)),
         energy_total=float(data.get("energy_total", 0.0)),
+        day_ahead=[_forecast_from_json(h) for h in data.get("day_ahead", [])],
+        day_ahead_date=data.get("day_ahead_date"),
+        day_ahead_energy_total=float(data.get("day_ahead_energy_total", 0.0)),
+        day_ahead_cost_total=float(data.get("day_ahead_cost_total", 0.0)),
+    )
+
+
+def _forecast_to_json(hour: ForecastHour) -> dict[str, Any]:
+    return {
+        "start": hour.start.isoformat(),
+        "energy_kwh": hour.energy_kwh,
+        "cost": hour.cost,
+        "temperature": hour.temperature,
+    }
+
+
+def _forecast_from_json(data: dict[str, Any]) -> ForecastHour:
+    start = dt_util.parse_datetime(data["start"])
+    if start is None:
+        raise ValueError(data["start"])
+    return ForecastHour(
+        start=start,
+        energy_kwh=float(data["energy_kwh"]),
+        cost=float(data["cost"]),
+        temperature=float(data["temperature"]),
     )
 
 
