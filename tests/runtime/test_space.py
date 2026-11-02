@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from datetime import datetime, timedelta
+from typing import Any
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -260,3 +261,31 @@ def test_price_source_from_the_setup() -> None:
     assert isinstance(entity, AttributePrices)
     assert entity.price_format is FORMATS["spot_heating_planner"]
     assert price_source({}) is None
+
+
+async def test_old_steps_are_dropped_at_start(
+    hass: HomeAssistant, switch_calls: list[str], hass_storage: dict[str, Any]
+) -> None:
+    old = dt_util.utcnow() - timedelta(days=60)
+    entry = config_entry(hass)
+    hass_storage[f"{DOMAIN}.{entry.entry_id}"] = {
+        "version": 1,
+        "data": {
+            "samples": [
+                {
+                    "start": old.isoformat(),
+                    "minutes": 15,
+                    "indoor_temperature_start": 5.0,
+                    "indoor_temperature_end": 5.2,
+                    "outdoor_temperature": -5.0,
+                    "heat_share": 1.0,
+                    "energy_kwh": 0.25,
+                }
+            ]
+        },
+    }
+    space = Space(hass, entry)
+    await space.async_start()
+    assert space._memory.samples == []  # noqa: SLF001 - checking what was kept
+    await space.async_stop()
+    del switch_calls

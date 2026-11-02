@@ -7,6 +7,9 @@ itself raises `ConfigError`, listing every problem at once.
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+MAX_WINDOW_DAYS = 60
+"""Longest learning window: 60 days of 15-minute steps is under 6000 steps."""
+
 
 class ConfigError(ValueError):
     """Settings that contradict each other or make no physical sense."""
@@ -203,7 +206,8 @@ class Learning:
     """Length of one logged step."""
 
     window_days: float = 14.0
-    """Learn from the most recent steps only, to follow the seasons."""
+    """Learn from the most recent steps only, to follow the seasons. At most
+    MAX_WINDOW_DAYS, which also bounds how many steps are kept."""
 
     min_heating_steps: int = 4
     """Learning needs at least this many steps with heating."""
@@ -241,8 +245,8 @@ class Learning:
         _validate(
             [
                 (
-                    self.step_minutes > 0 and self.window_days > 0,
-                    "learning step_minutes and window_days must be positive",
+                    self.step_minutes > 0 and 0 < self.window_days <= MAX_WINDOW_DAYS,
+                    f"step_minutes must be > 0, window_days 0-{MAX_WINDOW_DAYS}",
                 ),
                 (
                     self.min_heating_steps > 0 and self.min_coasting_steps > 0,

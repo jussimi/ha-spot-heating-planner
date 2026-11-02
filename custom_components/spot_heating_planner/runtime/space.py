@@ -187,9 +187,10 @@ class Space(DataUpdateCoordinator[SpaceState]):
 
     async def async_start(self) -> None:
         """Load what was learned, then run the first tick and every minute after."""
-        self._memory = await self._store.load()
-        self._learn()
         now = dt_util.utcnow()
+        self._memory = await self._store.load()
+        self._memory.samples = learning.recent(self._memory.samples, now, self.cfg)
+        self._learn()
         await self._refresh_outside_data(now)
         if not self._memory.samples and self._room().heated_room is None:
             self._schedule_calibration(now)

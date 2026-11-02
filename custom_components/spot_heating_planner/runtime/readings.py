@@ -15,7 +15,7 @@ from homeassistant.const import (
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util.unit_conversion import EnergyConverter, TemperatureConverter
 
-from ..const import MEDIAN_WINDOW
+from ..const import MEDIAN_MAX_READINGS, MEDIAN_WINDOW
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -85,7 +85,10 @@ class Smoothed:
     median the way it would swing the latest value.
     """
 
-    samples: deque[tuple[datetime, float]] = field(default_factory=deque)
+    samples: deque[tuple[datetime, float]] = field(
+        default_factory=lambda: deque(maxlen=MEDIAN_MAX_READINGS)
+    )
+    """Newest last. Bounded twice: by age (MEDIAN_WINDOW) and by count."""
 
     def add(self, now: datetime, value: float | None) -> None:
         """Remember a reading; a missing one is simply skipped."""

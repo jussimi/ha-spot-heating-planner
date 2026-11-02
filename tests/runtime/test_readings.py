@@ -6,6 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant, State
 from homeassistant.util import dt as dt_util
 
+from custom_components.spot_heating_planner.const import MEDIAN_MAX_READINGS
 from custom_components.spot_heating_planner.runtime import readings
 
 
@@ -64,3 +65,13 @@ def test_missing_readings_are_skipped() -> None:
     smoothed = readings.Smoothed()
     smoothed.add(now, None)
     assert smoothed.value(now) is None
+
+
+def test_buffer_has_a_size_cap_even_within_the_window() -> None:
+    now = dt_util.utcnow()
+    smoothed = readings.Smoothed()
+    for i in range(MEDIAN_MAX_READINGS * 3):  # far faster than one a minute
+        smoothed.add(now, float(i))
+    assert len(smoothed.samples) == MEDIAN_MAX_READINGS
+    # The newest readings are the ones kept
+    assert smoothed.samples[-1][1] == MEDIAN_MAX_READINGS * 3 - 1

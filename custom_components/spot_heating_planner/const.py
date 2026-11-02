@@ -44,9 +44,17 @@ CONF_VAT_PERCENT: Final = "vat_percent"
 MEDIAN_WINDOW: Final = timedelta(minutes=30)
 """Readings are smoothed with a median over this window."""
 
+MEDIAN_MAX_READINGS: Final = 60
+"""At most this many readings in a median: the window holds about 30 at one
+reading a minute, so this only bites if readings ever come faster."""
+
 TOMORROW_PRICES_FROM_HOUR: Final = 13
 """Local hour after which tomorrow's prices are fetched every 15 minutes
 until they appear (Nord Pool publishes them around 14:00 CET)."""
+
+HORIZON: Final = timedelta(hours=72)
+"""Prices and forecast points further ahead than this are dropped; the plan
+never reaches past the end of tomorrow."""
 
 # --- Storage ---
 STORAGE_VERSION: Final = 1

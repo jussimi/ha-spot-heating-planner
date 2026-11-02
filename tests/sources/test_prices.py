@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
+from custom_components.spot_heating_planner.const import HORIZON
 from custom_components.spot_heating_planner.sources.prices import (
     FORMATS,
     AttributePrices,
@@ -188,3 +189,11 @@ async def test_malformed_items_are_skipped(hass: HomeAssistant) -> None:
         entity_id=PRICE_ENTITY, price_format=FORMATS["spot_heating_planner"]
     )
     assert [p for _, p in await source.fetch(hass, dt_util.utcnow())] == [4.0]
+
+
+def test_prices_beyond_the_horizon_are_dropped() -> None:
+    hour = current_hour()
+    week = [(hour + timedelta(hours=h), 1.0) for h in range(7 * 24)]
+    cents = Pricing(unit=PriceUnit.CENTS_PER_KWH, vat_included=True)
+    prices = hourly(week, cents, hour)
+    assert len(prices) == HORIZON / timedelta(hours=1)

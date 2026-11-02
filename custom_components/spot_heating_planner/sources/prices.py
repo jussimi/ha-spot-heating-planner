@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 
+from ..const import HORIZON
+
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
@@ -80,12 +82,13 @@ class PriceSource(Protocol):
 def hourly(
     raw: list[tuple[datetime, float]], pricing: Pricing, now: datetime
 ) -> HourlyPrices:
-    """Converted prices averaged into whole hours, from the current hour on."""
+    """Converted prices averaged into whole hours, current hour to HORIZON."""
     current_hour = _hour_of(now)
+    horizon = current_hour + HORIZON
     by_hour: dict[datetime, list[float]] = defaultdict(list)
     for start, price in raw:
         hour = _hour_of(start)
-        if hour >= current_hour:
+        if current_hour <= hour < horizon:
             by_hour[hour].append(pricing.to_cents_per_kwh(price))
     return sorted((hour, sum(p) / len(p)) for hour, p in by_hour.items())
 

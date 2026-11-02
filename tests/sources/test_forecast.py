@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
+from custom_components.spot_heating_planner.const import HORIZON
 from custom_components.spot_heating_planner.core import humidity
 from custom_components.spot_heating_planner.sources.forecast import fetch_forecast
 
@@ -62,3 +63,11 @@ async def test_entries_without_a_temperature_are_skipped(hass: HomeAssistant) ->
 
 async def test_no_weather_entity_means_no_forecast(hass: HomeAssistant) -> None:
     assert await fetch_forecast(hass, WEATHER) == []
+
+
+async def test_forecast_beyond_the_horizon_is_dropped(hass: HomeAssistant) -> None:
+    ten_days = [{"datetime": hour(h), "temperature": -5.0} for h in range(1, 240)]
+    register_weather(hass, ten_days)
+    points = await fetch_forecast(hass, WEATHER)
+    assert all(p.time < dt_util.utcnow() + HORIZON for p in points)
+    assert len(points) < len(ten_days)

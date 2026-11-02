@@ -12,6 +12,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import TemperatureConverter
 
+from ..const import HORIZON
 from ..core import humidity
 from ..core.planner import ForecastPoint
 
@@ -26,7 +27,7 @@ HOURLY = "hourly"
 async def fetch_forecast(
     hass: HomeAssistant, weather_entity: str
 ) -> list[ForecastPoint]:
-    """Hourly forecast points; [] if the forecast isn't available."""
+    """Hourly forecast points up to HORIZON; [] if there's no forecast."""
     try:
         response = await hass.services.async_call(
             WEATHER_DOMAIN,
@@ -40,8 +41,9 @@ async def fetch_forecast(
         return []
     entries = _entries(response, weather_entity)
     unit = hass.config.units.temperature_unit
+    horizon = dt_util.utcnow() + HORIZON
     points = [_parse(entry, unit) for entry in entries]
-    return [p for p in points if p is not None]
+    return [p for p in points if p is not None and p.time < horizon]
 
 
 def _entries(response: Any, weather_entity: str) -> list[Any]:  # noqa: ANN401 - JSON

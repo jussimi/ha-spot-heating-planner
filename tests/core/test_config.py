@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from custom_components.spot_heating_planner.core.config import (
+    MAX_WINDOW_DAYS,
     Calibration,
     Config,
     ConfigError,
@@ -82,3 +83,9 @@ def test_with_groups_knows_every_group() -> None:
     for f in fields(Config):
         group = getattr(base, f.name)
         assert getattr(base.with_groups(group), f.name) is group
+
+
+def test_learning_window_has_an_upper_limit() -> None:
+    Learning(window_days=MAX_WINDOW_DAYS)
+    with pytest.raises(ConfigError):
+        Learning(window_days=MAX_WINDOW_DAYS + 1)
