@@ -94,3 +94,55 @@ async def test_space_without_prices(hass: HomeAssistant) -> None:
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert CONF_PRICE_SOURCE not in result["data"]
+
+
+# --- Reconfiguring -------------------------------------------------------------------
+
+
+async def test_reconfigure_changes_the_setup_and_keeps_the_entry(
+    hass: HomeAssistant,
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Garage",
+        data={
+            CONF_HEATERS: ["switch.heater"],
+            CONF_INDOOR_TEMPERATURE: "sensor.indoor_temperature",
+        },
+    )
+    entry.add_to_hass(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "reconfigure"
+
+    changed = {**SPACE, "name": "Workshop", CONF_HEATERS: ["switch.new_heater"]}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], changed)
+    assert result["step_id"] == "prices"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PRICE_SOURCE: "none"}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.title == "Workshop"
+    assert entry.data[CONF_HEATERS] == ["switch.new_heater"]
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_reconfigure_fills_in_the_current_answers(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Garage",
+        data={
+            CONF_HEATERS: ["switch.heater"],
+            CONF_INDOOR_TEMPERATURE: "sensor.indoor_temperature",
+        },
+    )
+    entry.add_to_hass(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    schema = result["data_schema"]
+    suggested = {
+        str(key): key.description.get("suggested_value")
+        for key in schema.schema
+        if key.description
+    }
+    assert suggested["name"] == "Garage"
+    assert suggested[CONF_HEATERS] == ["switch.heater"]

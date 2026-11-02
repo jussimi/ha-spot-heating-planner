@@ -23,6 +23,28 @@
           "weather": "Optional. The planner uses its hourly forecast."
         }
       },
+      "reconfigure": {
+        "title": "Change the heated space",
+        "description": "Change the heaters and sensors. What the space has learned is kept.",
+        "data": {
+          "name": "Name",
+          "heaters": "Heaters",
+          "indoor_temperature": "Indoor temperature",
+          "indoor_humidity": "Indoor humidity",
+          "outdoor_temperature": "Outdoor temperature",
+          "outdoor_humidity": "Outdoor humidity",
+          "energy_sensors": "Heaters' energy meters",
+          "weather": "Weather forecast"
+        },
+        "data_description": {
+          "heaters": "Switches, plugs or other on/off entities that power the heaters.",
+          "indoor_humidity": "Optional. Without it, heating only protects against frost.",
+          "outdoor_temperature": "Optional, but learning the room needs it.",
+          "outdoor_humidity": "Optional. Lets the planner warm the space before moist outside air arrives.",
+          "energy_sensors": "Optional kWh counters of the heaters. Make learning and costs more accurate.",
+          "weather": "Optional. The planner uses its hourly forecast."
+        }
+      },
       "prices": {
         "title": "Spot prices",
         "description": "Where the planner gets hourly electricity prices.",

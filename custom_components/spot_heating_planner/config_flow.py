@@ -3,6 +3,7 @@
 Three short steps:
 
     user     the space: its name, heaters and sensors
+             (reconfigure: the same, filled in, to change)
     prices   where spot prices come from (or none)
     nordpool / price_entity   the details of that source
 
@@ -14,7 +15,11 @@ entities.
 from typing import TYPE_CHECKING, Any
 
 import probatio
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers.selector import (
     ConfigEntrySelector,
@@ -141,7 +146,12 @@ PRICE_ENTITY_SCHEMA = probatio.Schema(
 
 
 class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Set up one space."""
+    """Set up one space, or change one that exists (reconfigure).
+
+    Reconfiguring walks the same steps with the current answers filled in,
+    and keeps the entry: what the space has learned is stored under the
+    entry's id, so nothing is lost.
+    """
 
     VERSION = 1
 
@@ -154,7 +164,16 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """The space: its name, heaters and sensors."""
         if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=SPACE_SCHEMA)
+            return self._form("user", SPACE_SCHEMA)
+        self._data.update(user_input)
+        return await self.async_step_prices()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The space's current setup, to change."""
+        if user_input is None:
+            return self._form("reconfigure", SPACE_SCHEMA)
         self._data.update(user_input)
         return await self.async_step_prices()
 
@@ -163,21 +182,21 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Where spot prices come from."""
         if user_input is None:
-            return self.async_show_form(step_id="prices", data_schema=PRICES_SCHEMA)
+            return self._form("prices", PRICES_SCHEMA)
         source = user_input[CONF_PRICE_SOURCE]
         if source == PRICE_SOURCE_NORDPOOL_ACTION:
             return await self.async_step_nordpool()
         if source == PRICE_SOURCE_ENTITY:
             return await self.async_step_price_entity()
-        return self._create()
+        return self._finish({})
 
     async def async_step_nordpool(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """The official Nord Pool integration: which entry and area."""
         if user_input is None:
-            return self.async_show_form(step_id="nordpool", data_schema=NORDPOOL_SCHEMA)
-        return self._create(
+            return self._form("nordpool", NORDPOOL_SCHEMA)
+        return self._finish(
             {CONF_PRICE_SOURCE: PRICE_SOURCE_NORDPOOL_ACTION, **user_input}
         )
 
@@ -186,12 +205,33 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """An entity with a price list, and its format."""
         if user_input is None:
-            return self.async_show_form(
-                step_id="price_entity", data_schema=PRICE_ENTITY_SCHEMA
-            )
-        return self._create({CONF_PRICE_SOURCE: PRICE_SOURCE_ENTITY, **user_input})
+            return self._form("price_entity", PRICE_ENTITY_SCHEMA)
+        return self._finish({CONF_PRICE_SOURCE: PRICE_SOURCE_ENTITY, **user_input})
 
-    def _create(self, prices: Mapping[str, Any] | None = None) -> ConfigFlowResult:
-        data = {**self._data, **(prices or {})}
+    def _form(self, step_id: str, schema: probatio.Schema) -> ConfigFlowResult:
+        """Show a step; when reconfiguring, with the current answers filled in."""
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(schema, self._current()),
+        )
+
+    def _current(self) -> dict[str, Any]:
+        """The existing entry's answers when reconfiguring, else none."""
+        if self.source != SOURCE_RECONFIGURE:
+            return {}
+        entry = self._get_reconfigure_entry()
+        return {
+            CONF_NAME: entry.title,
+            CONF_PRICE_SOURCE: PRICE_SOURCE_NONE,  # unless the entry has one
+            **entry.data,
+        }
+
+    def _finish(self, prices: Mapping[str, Any]) -> ConfigFlowResult:
+        """Create the entry, or update the reconfigured one and reload it."""
+        data = {**self._data, **prices}
         title = data.pop(CONF_NAME)
+        if self.source == SOURCE_RECONFIGURE:
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(), title=title, data=data
+            )
         return self.async_create_entry(title=title, data=data)
