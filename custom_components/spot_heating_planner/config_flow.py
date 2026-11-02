@@ -70,6 +70,7 @@ DEFAULT_CURRENCY = "EUR"
 DEFAULT_VAT_PERCENT = 25.5
 SWITCHABLE = ["switch", "input_boolean", "light", "fan"]
 MAX_VAT_PERCENT = 50
+NORDPOOL = "nordpool"
 
 
 def _entity(
@@ -126,16 +127,24 @@ PRICES_SCHEMA = probatio.Schema(
     }
 )
 
-NORDPOOL_SCHEMA = probatio.Schema(
-    {
-        probatio.Required(CONF_NORDPOOL_ENTRY): ConfigEntrySelector(
-            ConfigEntrySelectorConfig(integration="nordpool")
-        ),
-        probatio.Required(CONF_NORDPOOL_AREA): TextSelector(),
-        probatio.Required(CONF_CURRENCY, default=DEFAULT_CURRENCY): TextSelector(),
-        probatio.Required(CONF_VAT_PERCENT, default=DEFAULT_VAT_PERCENT): _vat(),
-    }
-)
+
+def _nordpool_schema(entry_id: str) -> probatio.Schema:
+    """The Nord Pool step, with the given entry chosen.
+
+    The entry picker needs a default: the frontend can't make up a starting
+    value for a config entry, and shows no form at all.
+    """
+    return probatio.Schema(
+        {
+            probatio.Required(
+                CONF_NORDPOOL_ENTRY, default=entry_id
+            ): ConfigEntrySelector(ConfigEntrySelectorConfig(integration=NORDPOOL)),
+            probatio.Required(CONF_NORDPOOL_AREA): TextSelector(),
+            probatio.Required(CONF_CURRENCY, default=DEFAULT_CURRENCY): TextSelector(),
+            probatio.Required(CONF_VAT_PERCENT, default=DEFAULT_VAT_PERCENT): _vat(),
+        }
+    )
+
 
 PRICE_ENTITY_SCHEMA = probatio.Schema(
     {
@@ -207,8 +216,11 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """The official Nord Pool integration: which entry and area."""
+        entries = self.hass.config_entries.async_entries(NORDPOOL)
+        if not entries:
+            return self.async_abort(reason="nordpool_missing")
         if user_input is None:
-            return self._form("nordpool", NORDPOOL_SCHEMA)
+            return self._form("nordpool", _nordpool_schema(entries[0].entry_id))
         return self._finish(
             {CONF_PRICE_SOURCE: PRICE_SOURCE_NORDPOOL_ACTION, **user_input}
         )

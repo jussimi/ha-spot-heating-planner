@@ -78,6 +78,9 @@
           "vat_percent": "0 if the entity's prices already include VAT."
         }
       }
+    },
+    "abort": {
+      "nordpool_missing": "Set up the Nord Pool integration first, or choose another price source."
     }
   },
   "selector": {

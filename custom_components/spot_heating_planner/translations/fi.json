@@ -78,6 +78,9 @@
           "vat_percent": "0, jos entiteetin hinnoissa on jo ALV."
         }
       }
+    },
+    "abort": {
+      "nordpool_missing": "Ota ensin Nord Pool -integraatio käyttöön tai valitse toinen hintalähde."
     }
   },
   "selector": {
