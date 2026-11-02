@@ -1,0 +1,12 @@
+{
+  // VS Code offers to install these when the folder is opened
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.mypy-type-checker",
+    "charliermarsh.ruff",
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml",
+    "github.vscode-github-actions"
+  ]
+}

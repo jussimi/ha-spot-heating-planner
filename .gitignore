@@ -13,7 +13,9 @@ htmlcov/
 dev/config/*
 !dev/config/configuration.yaml
 
-# Editors and macOS
-.vscode/
+# Editors and macOS: the shared VS Code setup is tracked, personal files aren't
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 .DS_Store
