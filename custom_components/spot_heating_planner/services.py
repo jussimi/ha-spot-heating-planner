@@ -68,7 +68,9 @@ async def compare_thermostat(hass: HomeAssistant, call: ServiceCall) -> dict[str
     space = _space(hass, call.data[CONF_CONFIG_ENTRY_ID])
     start, end = _period(call.data[CONF_START], call.data[CONF_END])
     sources = comparisons.sources(hass, space.entry, space.entities)
-    hours = await history.read(hass, sources, start=start, end=end)
+    hours = await history.read_in_chunks(
+        hass, sources, start=start, end=end, chunk=comparisons.CHUNK
+    )
     return comparison_response(
         hours, call.data[CONF_TEMPERATURES], currency=space.currency
     )

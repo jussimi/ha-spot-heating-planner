@@ -30,7 +30,7 @@ from pytest_homeassistant_custom_component.components.recorder.common import (
 
 from custom_components.spot_heating_planner.const import DOMAIN
 from custom_components.spot_heating_planner.core.options import COMPARISON_TEMPERATURES
-from custom_components.spot_heating_planner.runtime import statistics
+from custom_components.spot_heating_planner.runtime import comparisons, statistics
 from custom_components.spot_heating_planner.runtime.space import Space
 from tests.fakes import ENERGY, OUTDOOR, config_entry, fake_space
 
@@ -109,10 +109,15 @@ def add_history(hass: HomeAssistant, start: datetime, first_sum: float = 0.0) ->
 
 @pytest.fixture
 async def garage(
-    recorder_mock: object, hass: HomeAssistant
+    recorder_mock: object, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> AsyncIterator[MockConfigEntry]:
-    """A running space comparing with 5 and 10 deg C, and a day of history."""
+    """A running space comparing with 5 and 10 deg C, and a day of history.
+
+    The made-up history predates the space's sensors, so the series are told
+    to start from it.
+    """
     del recorder_mock
+    monkeypatch.setattr(comparisons, "first_priced_hour", lambda *_: day_start())
     fake_space(hass)
     entry = config_entry(hass, options={COMPARISON_TEMPERATURES: [5.0, 10.0]})
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -240,3 +245,27 @@ async def test_action_refuses_a_period_ending_before_it_starts(
             start=start.isoformat(),
             end=(start - timedelta(days=1)).isoformat(),
         )
+
+
+async def test_chunks_give_the_same_series_as_one_pass(
+    hass: HomeAssistant, garage: MockConfigEntry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    add_history(hass, day_start() + timedelta(hours=HOURS), HOURS * METERED_KWH)
+    await async_wait_recording_done(hass)
+    space = await update(hass, garage)
+    one_pass = dict(space.memory.comparison_totals)
+
+    monkeypatch.setattr(comparisons, "CHUNK", timedelta(hours=5))
+    space.memory.comparison_temperatures = None  # force a fresh start
+    await update(hass, garage)
+    assert space.memory.comparison_totals == pytest.approx(one_pass)
+
+
+async def test_nothing_before_the_price_sensor_existed(
+    hass: HomeAssistant, garage: MockConfigEntry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    space: Space = garage.runtime_data
+    monkeypatch.setattr(comparisons, "first_priced_hour", lambda *_: dt_util.utcnow())
+    space.memory.comparison_temperatures = None
+    await update(hass, garage)
+    assert space.memory.comparison_totals == {}

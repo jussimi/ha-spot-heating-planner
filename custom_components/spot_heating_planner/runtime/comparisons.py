@@ -11,6 +11,8 @@ from the first recorded hour, and even then the hours of temperatures that
 stay come out the same.
 """
 
+import asyncio
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.helpers import entity_registry as er
@@ -20,6 +22,9 @@ from ..const import DOMAIN
 from ..core import comparison
 from . import history, statistics
 from .history import HOUR
+
+CHUNK = timedelta(days=365)
+"""Read and write history a year at a time: bounded memory, however long."""
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -53,7 +58,12 @@ def sources(
 
 
 async def update(space: Space) -> None:
-    """Append the hours since the last run; start over if the list changed."""
+    """Append the hours since the last run; start over if the list changed.
+
+    History is read one CHUNK at a time, so even years of it never sit in
+    memory at once. Progress is saved after every chunk; an interrupted run
+    carries on from there.
+    """
     hass, entry, memory = space.hass, space.entry, space.memory
     if statistics.RECORDER not in hass.config.components:
         return
@@ -63,13 +73,25 @@ async def update(space: Space) -> None:
         memory.comparison_totals = {}
         memory.comparison_temperatures = temperatures
 
+    start = memory.comparison_through or first_priced_hour(hass, entry)
+    if start is None:
+        return
     end = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
-    hours = await history.read(
-        hass,
-        sources(hass, entry, space.entities),
-        start=memory.comparison_through,
-        end=end,
-    )
+    source = sources(hass, entry, space.entities)
+    while start < end:
+        chunk_end = min(start + CHUNK, end)
+        hours = await history.read(hass, source, start=start, end=chunk_end)
+        _write_chunk(space, hours, temperatures)
+        space.save_soon()
+        start = chunk_end
+        await asyncio.sleep(0)  # let the rest of Home Assistant run
+
+
+def _write_chunk(
+    space: Space, hours: list[HourHistory], temperatures: list[float]
+) -> None:
+    """Append one chunk to every series and note how far they reach."""
+    memory = space.memory
     series_values = [(statistics.metered_cost(space.currency), costs(metered(hours)))]
     for temperature in temperatures:
         results = thermostat_results(hours, temperature)
@@ -84,7 +106,21 @@ async def update(space: Space) -> None:
     written = [start for _, values in series_values for start, _ in values]
     if written:
         memory.comparison_through = max(written) + HOUR
-    space.save_soon()
+
+
+def first_priced_hour(hass: HomeAssistant, entry: ConfigEntry) -> datetime | None:
+    """When the space's energy price sensor was created.
+
+    No hour before it can be counted: every series needs the price then in
+    force. None if the sensor doesn't exist (yet).
+    """
+    registry = er.async_get(hass)
+    entity_id = own_sensor(hass, entry, "energy_price")
+    registry_entry = registry.async_get(entity_id) if entity_id else None
+    if registry_entry is None:
+        return None
+    created = dt_util.as_utc(registry_entry.created_at)
+    return created.replace(minute=0, second=0, microsecond=0)
 
 
 def metered(hours: list[HourHistory]) -> list[HourResult | None]:

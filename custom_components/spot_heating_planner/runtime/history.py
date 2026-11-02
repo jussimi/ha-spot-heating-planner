@@ -24,9 +24,6 @@ HOUR = timedelta(hours=1)
 UNITS = {"temperature": "°C", "energy": "kWh", "power": "kW"}
 """Ask for every value in the units the core works in."""
 
-BEGINNING = datetime(2000, 1, 1, tzinfo=UTC)
-"""Read from here to get everything there is."""
-
 type Kind = Literal["mean", "change"]
 
 
@@ -45,9 +42,9 @@ class Sources:
 
 
 async def read(
-    hass: HomeAssistant, sources: Sources, *, start: datetime | None, end: datetime
+    hass: HomeAssistant, sources: Sources, *, start: datetime, end: datetime
 ) -> list[HourHistory]:
-    """Every hour from `start` (None: the first recorded hour) up to `end`."""
+    """Every hour from `start` up to `end`, with what the statistics hold."""
     means = {
         s
         for s in (
@@ -60,18 +57,14 @@ async def read(
         if s
     }
     changes = set(sources.energy_meters)
-    since = start or BEGINNING
-    mean_rows = await _rows(hass, means, "mean", start=since, end=end)
-    change_rows = await _rows(hass, changes, "change", start=since, end=end)
-    first = start or _first_hour(mean_rows, change_rows)
-    if first is None:
-        return []
+    mean_rows = await _rows(hass, means, "mean", start=start, end=end)
+    change_rows = await _rows(hass, changes, "change", start=start, end=end)
 
     def mean(statistic: str | None, at: datetime) -> float | None:
         return None if statistic is None else mean_rows.get(statistic, {}).get(at)
 
     hours = []
-    at = first
+    at = start
     while at < end:
         heat_loss_w = mean(sources.heat_loss, at)
         hours.append(
@@ -91,10 +84,21 @@ async def read(
     return hours
 
 
-def _first_hour(*tables: dict[str, dict[datetime, float]]) -> datetime | None:
-    """The earliest hour any of the statistics has a value for."""
-    starts = [min(rows) for table in tables for rows in table.values() if rows]
-    return min(starts) if starts else None
+async def read_in_chunks(
+    hass: HomeAssistant,
+    sources: Sources,
+    *,
+    start: datetime,
+    end: datetime,
+    chunk: timedelta,
+) -> list[HourHistory]:
+    """The same as `read`, querying the statistics a chunk at a time."""
+    hours: list[HourHistory] = []
+    while start < end:
+        chunk_end = min(start + chunk, end)
+        hours += await read(hass, sources, start=start, end=chunk_end)
+        start = chunk_end
+    return hours
 
 
 def _energy(
