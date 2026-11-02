@@ -9,7 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
-from .config import Config
+from .config import Comparison, Config
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -33,6 +33,9 @@ class Setting:
     step: float
     unit: str | None
 
+
+COMPARISON_TEMPERATURES = "comparison_temperatures"
+"""Options key of the comparison thermostats' temperatures, a list."""
 
 CELSIUS = "°C"
 PERCENT = "%"
@@ -83,7 +86,10 @@ def config_from_options(
     for setting in SETTINGS:
         if setting.key in options:
             changes[setting.group][setting.field] = float(options[setting.key])
-    groups = [
+    groups: list[Any] = [
         replace(getattr(base, group), **fields) for group, fields in changes.items()
     ]
+    if COMPARISON_TEMPERATURES in options:
+        temperatures = tuple(float(t) for t in options[COMPARISON_TEMPERATURES])
+        groups.append(Comparison(temperatures=temperatures))
     return base.with_groups(*groups)

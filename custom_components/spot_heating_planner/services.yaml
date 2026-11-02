@@ -1,0 +1,20 @@
+compare_thermostat:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: spot_heating_planner
+    temperatures:
+      required: true
+      example: "[4, 5, 8, 10]"
+      selector:
+        object:
+    start:
+      required: true
+      selector:
+        date:
+    end:
+      required: true
+      selector:
+        date:

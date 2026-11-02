@@ -17,10 +17,14 @@ from typing import TYPE_CHECKING, Any
 import probatio
 from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
+    ConfigEntry,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
+    OptionsFlow,
 )
 from homeassistant.const import CONF_NAME
+from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     ConfigEntrySelector,
     ConfigEntrySelectorConfig,
@@ -54,6 +58,8 @@ from .const import (
     PRICE_SOURCE_ENTITY,
     PRICE_SOURCE_NORDPOOL_ACTION,
 )
+from .core.config import Comparison, ConfigError
+from .core.options import COMPARISON_TEMPERATURES, config_from_options
 from .sources.prices import FORMATS
 
 if TYPE_CHECKING:
@@ -155,6 +161,13 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """The options: which plain thermostats to compare with."""
+        del config_entry
+        return SpotHeatingOptionsFlow()
+
     def __init__(self) -> None:
         """Collect the answers of every step before creating the entry."""
         self._data: dict[str, Any] = {}
@@ -235,3 +248,54 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._get_reconfigure_entry(), title=title, data=data
             )
         return self.async_create_entry(title=title, data=data)
+
+
+SUGGESTED_COMPARISONS = ["0", "4", "5", "8", "10", "12", "15", "18"]
+
+
+class SpotHeatingOptionsFlow(OptionsFlow):
+    """Which plain thermostats the comparison series and sensors use.
+
+    The other settings are number entities; a list of temperatures isn't a
+    number, so it lives here.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pick the temperatures, or type others."""
+        current = config_from_options(self.config_entry.options).comparison
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                temperatures = tuple(
+                    sorted({float(t) for t in user_input[COMPARISON_TEMPERATURES]})
+                )
+                Comparison(temperatures=temperatures)
+            except ValueError, ConfigError:
+                errors["base"] = "invalid_temperatures"
+            else:
+                return await self._save(temperatures)
+        schema = probatio.Schema(
+            {
+                probatio.Required(
+                    COMPARISON_TEMPERATURES,
+                    default=[f"{t:g}" for t in current.temperatures],
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=SUGGESTED_COMPARISONS,
+                        multiple=True,
+                        custom_value=True,
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    async def _save(self, temperatures: tuple[float, ...]) -> ConfigFlowResult:
+        """Keep them, and let a running space rebuild its series at once."""
+        entry = self.config_entry
+        options = {**entry.options, COMPARISON_TEMPERATURES: list(temperatures)}
+        if entry.state is ConfigEntryState.LOADED:
+            await entry.runtime_data.async_set_config(config_from_options(options))
+        return self.async_create_entry(data=options)

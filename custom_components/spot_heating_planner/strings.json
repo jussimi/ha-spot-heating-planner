@@ -224,6 +224,56 @@
   "exceptions": {
     "invalid_setting": {
       "message": "That value contradicts the other settings: {problems}"
+    },
+    "room_not_learned": {
+      "message": "The space hasn't learned its room yet, so there's nothing to compare with."
+    },
+    "unknown_space": {
+      "message": "No such heated space."
+    },
+    "space_not_loaded": {
+      "message": "That heated space isn't running."
+    },
+    "end_before_start": {
+      "message": "The period ends before it starts."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Comparison thermostats",
+        "description": "What plain thermostats at these temperatures would have cost is calculated from history and kept as statistics, next to what heating actually cost.",
+        "data": {
+          "comparison_temperatures": "Thermostat temperatures (°C)"
+        }
+      }
+    },
+    "error": {
+      "invalid_temperatures": "Give between 1 and 8 temperatures from -20 to 30 °C."
+    }
+  },
+  "services": {
+    "compare_thermostat": {
+      "name": "Compare with a thermostat",
+      "description": "What plain thermostats would have cost over a period, next to what heating actually cost.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Space",
+          "description": "The heated space to compare."
+        },
+        "temperatures": {
+          "name": "Temperatures",
+          "description": "Thermostat temperatures to compare, in °C."
+        },
+        "start": {
+          "name": "Start",
+          "description": "First day of the period."
+        },
+        "end": {
+          "name": "End",
+          "description": "Last day of the period."
+        }
+      }
     }
   }
 }

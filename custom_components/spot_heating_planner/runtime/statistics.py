@@ -70,6 +70,44 @@ def day_ahead_cost(currency: str) -> Series:
     )
 
 
+def thermostat_energy(temperature: float) -> Series:
+    """A comparison thermostat's energy series."""
+    return Series(
+        key=f"thermostat_{_temperature_key(temperature)}_energy",
+        name=f"thermostat {temperature:g} °C energy",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        unit_class="energy",
+        cumulative=True,
+    )
+
+
+def thermostat_cost(temperature: float, currency: str) -> Series:
+    """A comparison thermostat's cost series."""
+    return Series(
+        key=f"thermostat_{_temperature_key(temperature)}_cost",
+        name=f"thermostat {temperature:g} °C cost",
+        unit=currency,
+        unit_class=None,
+        cumulative=True,
+    )
+
+
+def metered_cost(currency: str) -> Series:
+    """What the heaters' meters measured, priced: the real curve, retroactively."""
+    return Series(
+        key="metered_cost",
+        name="metered cost",
+        unit=currency,
+        unit_class=None,
+        cumulative=True,
+    )
+
+
+def _temperature_key(temperature: float) -> str:
+    """4.5 -> "4_5", -2 -> "minus_2": statistic ids allow no dots or signs."""
+    return f"{temperature:g}".replace("-", "minus_").replace(".", "_")
+
+
 def statistic_id(entry: ConfigEntry, series: Series) -> str:
     """E.g. spot_heating_planner:01jabc..._day_ahead_energy."""
     return f"{DOMAIN}:{entry.entry_id.lower()}_{series.key}"
@@ -91,7 +129,14 @@ def write_hour(
     hass: HomeAssistant, entry: ConfigEntry, series: Series, hour: Hour
 ) -> None:
     """Write one hour of a series."""
-    if RECORDER not in hass.config.components:
+    write_hours(hass, entry, series, [hour])
+
+
+def write_hours(
+    hass: HomeAssistant, entry: ConfigEntry, series: Series, hours: list[Hour]
+) -> None:
+    """Write hours of a series; hours already there are overwritten."""
+    if RECORDER not in hass.config.components or not hours:
         return
     metadata = StatisticMetaData(
         mean_type=StatisticMeanType.NONE
@@ -104,9 +149,23 @@ def write_hour(
         unit_class=series.unit_class,
         unit_of_measurement=series.unit,
     )
-    if series.cumulative:
-        row = StatisticData(start=hour.start, state=hour.value, sum=hour.total)
-    else:
-        value = hour.value
-        row = StatisticData(start=hour.start, mean=value, min=value, max=value)
-    async_add_external_statistics(hass, metadata, [row])
+    async_add_external_statistics(
+        hass, metadata, [_row(hour, cumulative=series.cumulative) for hour in hours]
+    )
+
+
+def _row(hour: Hour, *, cumulative: bool) -> StatisticData:
+    if cumulative:
+        return StatisticData(start=hour.start, state=hour.value, sum=hour.total)
+    value = hour.value
+    return StatisticData(start=hour.start, mean=value, min=value, max=value)
+
+
+def running_totals(hours: list[tuple[datetime, float]]) -> list[Hour]:
+    """Hours with their running total, for a cumulative series."""
+    total = 0.0
+    rows = []
+    for start, value in hours:
+        total += value
+        rows.append(Hour(start=start, value=value, total=total))
+    return rows

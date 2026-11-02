@@ -7,6 +7,12 @@ itself raises `ConfigError`, listing every problem at once.
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+COMPARISON_RANGE = (-20.0, 30.0)
+"""Thermostat temperatures worth comparing with, deg C."""
+
+MAX_COMPARISONS = 8
+"""Each comparison is two series rebuilt daily; keep that bounded."""
+
 MAX_WINDOW_DAYS = 60
 """Longest learning window: 60 days of 15-minute steps is under 6000 steps."""
 
@@ -325,6 +331,32 @@ class Sensors:
 
 
 @dataclass(frozen=True, kw_only=True)
+class Comparison:
+    """Plain thermostats to compare the planner with (docs/physics.md#comparison)."""
+
+    temperatures: tuple[float, ...] = (4.0, 5.0, 8.0, 10.0)
+    """Each gets its own retroactive cost and energy series, deg C."""
+
+    def __post_init__(self) -> None:
+        """Refuse an absurd thermostat or too many of them."""
+        _validate(
+            [
+                (
+                    all(
+                        COMPARISON_RANGE[0] <= t <= COMPARISON_RANGE[1]
+                        for t in self.temperatures
+                    ),
+                    f"comparison temperatures must be {COMPARISON_RANGE} deg C",
+                ),
+                (
+                    len(self.temperatures) <= MAX_COMPARISONS,
+                    f"at most {MAX_COMPARISONS} comparison temperatures",
+                ),
+            ]
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
 class Solver:
     """The planner's internals (docs/physics.md#the-planner)."""
 
@@ -375,6 +407,7 @@ class Config:
     calibration: Calibration = field(default_factory=Calibration)
     sensors: Sensors = field(default_factory=Sensors)
     solver: Solver = field(default_factory=Solver)
+    comparison: Comparison = field(default_factory=Comparison)
 
     def with_groups(self, *groups: Group) -> Config:
         """A copy of the config with whole groups swapped in, each by its type.
@@ -398,6 +431,7 @@ type Group = (
     | Calibration
     | Sensors
     | Solver
+    | Comparison
 )
 
 # Which Config field holds each group type (a test checks it covers them all)
@@ -411,4 +445,5 @@ _FIELD_FOR_GROUP: dict[type, str] = {
     Calibration: "calibration",
     Sensors: "sensors",
     Solver: "solver",
+    Comparison: "comparison",
 }

@@ -17,6 +17,8 @@ The decisions themselves live in the core; this module only connects them
 to Home Assistant.
 """
 
+import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -71,7 +73,7 @@ from ..sources.prices import (
     PriceSource,
     tomorrow_known,
 )
-from . import readings, statistics
+from . import comparisons, readings, statistics
 from .storage import Memory, SpaceStore
 
 if TYPE_CHECKING:
@@ -83,12 +85,15 @@ if TYPE_CHECKING:
     from ..core.config import Config
     from ..core.learning import RoomChoice, RoomEstimate
     from ..core.planner import ForecastPoint
+    from ..core.thermal import HeatedRoom
 
 LOGGER = logging.getLogger(__name__)
 SUMMARY_HOURS = 24
 """The dashboard's planned heating and cost cover this many hours."""
 CENTS_PER_UNIT = 100.0
 DEFAULT_CURRENCY = "EUR"
+REBUILD_LOCAL_TIME = (0, 5)
+"""Rebuild the comparison series every night at 00:05, local time."""
 STUCK_CHECK_STEPS = 8
 """How many recent steps the stuck-sensor check looks at (2 hours)."""
 
@@ -210,6 +215,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
         self._step: OpenStep | None = None
         self._unsubscribe: Callable[[], None] | None = None
         self._last_energy: float | None = None
+        self._rebuild: asyncio.Task[None] | None = None
         self._heating = False
 
     # --- Lifecycle --------------------------------------------------------------------
@@ -227,12 +233,17 @@ class Space(DataUpdateCoordinator[SpaceState]):
         self._unsubscribe = async_track_time_change(
             self.hass, self._on_minute, second=0
         )
+        self._schedule_rebuild()
 
     async def async_stop(self) -> None:
-        """Stop ticking and save straight away."""
+        """Stop ticking and rebuilding, and save straight away."""
         if self._unsubscribe is not None:
             self._unsubscribe()
             self._unsubscribe = None
+        if self._rebuild is not None and not self._rebuild.done():
+            self._rebuild.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._rebuild
         await self._store.save_now(self._memory)
 
     @callback
@@ -284,10 +295,13 @@ class Space(DataUpdateCoordinator[SpaceState]):
     async def async_set_config(self, cfg: Config) -> None:
         """New settings: relearn with them and plan again."""
         now = dt_util.utcnow()
+        comparisons_changed = cfg.comparison != self.cfg.comparison
         self.cfg = cfg
         self._learn()
         await self._replan(now)
         await self._act(now)
+        if comparisons_changed:
+            self._schedule_rebuild()
 
     # --- The tick ---------------------------------------------------------------------
 
@@ -298,6 +312,8 @@ class Space(DataUpdateCoordinator[SpaceState]):
             self._close_step(now)
         if now.minute == 0:
             self._record_day_ahead(now)
+        if _is_rebuild_time(now):
+            self._schedule_rebuild()
         if self._is_planning_time(now):
             await self._refresh_outside_data(now)
             await self._replan(now)
@@ -512,6 +528,20 @@ class Space(DataUpdateCoordinator[SpaceState]):
                 domain, action, target={"entity_id": heater}, blocking=True
             )
 
+    # --- The comparison series -------------------------------------------------------
+
+    async def async_rebuild_comparisons(self) -> None:
+        """Rewrite the comparison and metered-cost series from history."""
+        await comparisons.rebuild(self)
+
+    def _schedule_rebuild(self) -> None:
+        """Rebuild in the background; reading a year of history takes a moment."""
+        if self._rebuild is not None and not self._rebuild.done():
+            return
+        self._rebuild = self.hass.async_create_background_task(
+            self.async_rebuild_comparisons(), name=f"{DOMAIN} comparisons"
+        )
+
     # --- The day-ahead forecast -------------------------------------------------------
 
     def _take_day_ahead(self, now: datetime) -> None:
@@ -560,7 +590,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
                 ),
             ),
             (
-                statistics.day_ahead_cost(self._currency()),
+                statistics.day_ahead_cost(self.currency),
                 statistics.Hour(
                     start=start, value=forecast.cost, total=memory.day_ahead_cost_total
                 ),
@@ -572,8 +602,15 @@ class Space(DataUpdateCoordinator[SpaceState]):
         ):
             statistics.write_hour(self.hass, self.entry, series, hour)
 
-    def _currency(self) -> str:
+    @property
+    def currency(self) -> str:
+        """The currency the space's costs are in."""
         return str(self.entry.data.get(CONF_CURRENCY, DEFAULT_CURRENCY))
+
+    @property
+    def heated_room(self) -> HeatedRoom | None:
+        """The room to plan with: manual, or learned once confident."""
+        return self._room().heated_room
 
     # --- Cost -------------------------------------------------------------------------
 
@@ -645,3 +682,8 @@ class Space(DataUpdateCoordinator[SpaceState]):
             hour_costs=self._hour_costs(),
             summary=self._summary(now),
         )
+
+
+def _is_rebuild_time(now: datetime) -> bool:
+    local = dt_util.as_local(now)
+    return (local.hour, local.minute) == REBUILD_LOCAL_TIME

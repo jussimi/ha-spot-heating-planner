@@ -224,6 +224,56 @@
   "exceptions": {
     "invalid_setting": {
       "message": "Arvo on ristiriidassa muiden asetusten kanssa: {problems}"
+    },
+    "room_not_learned": {
+      "message": "Tila ei ole vielä oppinut huonettaan, joten vertailtavaa ei ole."
+    },
+    "unknown_space": {
+      "message": "Tällaista lämmitettävää tilaa ei ole."
+    },
+    "space_not_loaded": {
+      "message": "Lämmitettävä tila ei ole käynnissä."
+    },
+    "end_before_start": {
+      "message": "Jakso päättyy ennen kuin se alkaa."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vertailutermostaatit",
+        "description": "Mitä tavalliset termostaatit näissä lämpötiloissa olisivat maksaneet, lasketaan historiasta ja tallennetaan tilastoiksi toteutuneen lämmityskustannuksen rinnalle.",
+        "data": {
+          "comparison_temperatures": "Termostaattien lämpötilat (°C)"
+        }
+      }
+    },
+    "error": {
+      "invalid_temperatures": "Anna 1–8 lämpötilaa väliltä -20…30 °C."
+    }
+  },
+  "services": {
+    "compare_thermostat": {
+      "name": "Vertaa termostaattiin",
+      "description": "Mitä tavalliset termostaatit olisivat maksaneet jakson aikana toteutuneeseen lämmityskustannukseen verrattuna.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Tila",
+          "description": "Verrattava lämmitettävä tila."
+        },
+        "temperatures": {
+          "name": "Lämpötilat",
+          "description": "Verrattavat termostaattilämpötilat, °C."
+        },
+        "start": {
+          "name": "Alku",
+          "description": "Jakson ensimmäinen päivä."
+        },
+        "end": {
+          "name": "Loppu",
+          "description": "Jakson viimeinen päivä."
+        }
+      }
     }
   }
 }
