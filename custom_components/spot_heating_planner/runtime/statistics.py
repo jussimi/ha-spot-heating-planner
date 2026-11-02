@@ -161,9 +161,11 @@ def _row(hour: Hour, *, cumulative: bool) -> StatisticData:
     return StatisticData(start=hour.start, mean=value, min=value, max=value)
 
 
-def running_totals(hours: list[tuple[datetime, float]]) -> list[Hour]:
+def running_totals(
+    hours: list[tuple[datetime, float]], *, start_total: float = 0.0
+) -> list[Hour]:
     """Hours with their running total, for a cumulative series."""
-    total = 0.0
+    total = start_total
     rows = []
     for start, value in hours:
         total += value

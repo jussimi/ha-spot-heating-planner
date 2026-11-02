@@ -125,6 +125,9 @@
       "spot_price": {
         "name": "Pörssisähkön hinta"
       },
+      "energy_price": {
+        "name": "Energian hinta"
+      },
       "heating_energy": {
         "name": "Lämmitysenergia"
       },
@@ -224,9 +227,6 @@
   "exceptions": {
     "invalid_setting": {
       "message": "Arvo on ristiriidassa muiden asetusten kanssa: {problems}"
-    },
-    "room_not_learned": {
-      "message": "Tila ei ole vielä oppinut huonettaan, joten vertailtavaa ei ole."
     },
     "unknown_space": {
       "message": "Tällaista lämmitettävää tilaa ei ole."

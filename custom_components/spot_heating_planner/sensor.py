@@ -102,6 +102,13 @@ SENSORS: tuple[SpaceSensorDescription, ...] = (
         value=lambda s: s.price_now,
     ),
     SpaceSensorDescription(
+        key="energy_price",
+        native_unit_of_measurement="c/kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value=lambda s: s.energy_price_now,
+    ),
+    SpaceSensorDescription(
         key="heating_energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,

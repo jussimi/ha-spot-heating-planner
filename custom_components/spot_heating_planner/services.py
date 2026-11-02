@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from homeassistant.core import ServiceResponse
 
     from .core.comparison import HourHistory
-    from .core.thermal import HeatedRoom
     from .runtime.space import Space
 
 COMPARE_THERMOSTAT = "compare_thermostat"
@@ -67,50 +66,33 @@ def async_register(hass: HomeAssistant) -> None:
 async def compare_thermostat(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:
     """The comparison for one space, over whole local days from start to end."""
     space = _space(hass, call.data[CONF_CONFIG_ENTRY_ID])
-    heated_room = space.heated_room
-    if heated_room is None:
-        raise ServiceValidationError(
-            translation_domain=DOMAIN, translation_key="room_not_learned"
-        )
     start, end = _period(call.data[CONF_START], call.data[CONF_END])
     sources = comparisons.sources(hass, space.entry, space.entities)
     hours = await history.read(hass, sources, start=start, end=end)
     return comparison_response(
-        hours,
-        heated_room,
-        call.data[CONF_TEMPERATURES],
-        space.cfg.prices.fixed_energy_cost,
-        currency=space.currency,
+        hours, call.data[CONF_TEMPERATURES], currency=space.currency
     )
 
 
 def comparison_response(
-    hours: list[HourHistory],
-    heated_room: HeatedRoom,
-    temperatures: list[float],
-    fixed: float,
-    *,
-    currency: str,
+    hours: list[HourHistory], temperatures: list[float], *, currency: str
 ) -> dict[str, Any]:
     """Actual and thermostat totals over the hours that have every reading.
 
-    Only hours with outdoor temperature, price and metered energy count, so
-    every figure covers the same hours and the savings compare like with like.
+    Only hours with every input (outdoor temperature, energy price, the room
+    as learned then, metered energy) count, so every figure covers the same
+    hours and the savings compare like with like.
     """
     complete = [
         h
         for h in hours
-        if h.outdoor_temperature is not None
-        and h.price is not None
-        and h.energy_kwh is not None
+        if comparison.metered_hour(h) is not None
+        and comparison.thermostat_hour(h, 0.0) is not None
     ]
-    actual = comparison.totals([comparison.metered_hour(h, fixed) for h in complete])
+    actual = comparison.totals(comparisons.metered(complete))
     thermostats = []
     for temperature in temperatures:
-        results = comparisons.thermostat_results(
-            complete, heated_room, temperature, fixed
-        )
-        total = comparison.totals(results)
+        total = comparison.totals(comparisons.thermostat_results(complete, temperature))
         thermostats.append(
             {
                 "temperature": temperature,

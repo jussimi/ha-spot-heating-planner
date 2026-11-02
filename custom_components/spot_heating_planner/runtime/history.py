@@ -1,8 +1,9 @@
 """Past hours, read from Home Assistant's long-term statistics.
 
 Sensors with a state class keep an hourly mean (measurements) or hourly
-change (totals) for good, so the comparison can reach back as far as those
-sensors have existed, even before this integration was installed.
+change (totals) for good. The comparison reads every input from there, each
+as it was in that hour: the outdoor temperature, the energy price and the
+room this integration had learned at the time.
 """
 
 from dataclasses import dataclass
@@ -13,14 +14,18 @@ from homeassistant.components.recorder.statistics import statistics_during_perio
 from homeassistant.helpers.recorder import get_instance
 
 from ..core.comparison import HourHistory
+from ..core.thermal import WATTS_PER_KW
 
 if TYPE_CHECKING:
     from homeassistant.components.recorder.statistics import StatisticsRow
     from homeassistant.core import HomeAssistant
 
 HOUR = timedelta(hours=1)
-UNITS = {"temperature": "°C", "energy": "kWh"}
+UNITS = {"temperature": "°C", "energy": "kWh", "power": "kW"}
 """Ask for every value in the units the core works in."""
+
+BEGINNING = datetime(2000, 1, 1, tzinfo=UTC)
+"""Read from here to get everything there is."""
 
 type Kind = Literal["mean", "change"]
 
@@ -30,45 +35,66 @@ class Sources:
     """Which statistics hold what."""
 
     outdoor_temperature: str | None
-    price: str | None
+    energy_price: str | None
+    heat_loss: str | None
+    """The space's heat loss sensor, W per deg C."""
+
+    heater_power: str | None
     energy_meters: list[str]
     indoor_temperature: str | None
 
 
 async def read(
-    hass: HomeAssistant, sources: Sources, *, start: datetime, end: datetime
+    hass: HomeAssistant, sources: Sources, *, start: datetime | None, end: datetime
 ) -> list[HourHistory]:
-    """Every hour from `start` to `end`, with what the statistics hold for it."""
+    """Every hour from `start` (None: the first recorded hour) up to `end`."""
     means = {
         s
         for s in (
             sources.outdoor_temperature,
-            sources.price,
+            sources.energy_price,
+            sources.heat_loss,
+            sources.heater_power,
             sources.indoor_temperature,
         )
         if s
     }
     changes = set(sources.energy_meters)
-    mean_rows = await _rows(hass, means, "mean", start=start, end=end)
-    change_rows = await _rows(hass, changes, "change", start=start, end=end)
+    since = start or BEGINNING
+    mean_rows = await _rows(hass, means, "mean", start=since, end=end)
+    change_rows = await _rows(hass, changes, "change", start=since, end=end)
+    first = start or _first_hour(mean_rows, change_rows)
+    if first is None:
+        return []
 
-    def value(statistic: str | None, at: datetime) -> float | None:
+    def mean(statistic: str | None, at: datetime) -> float | None:
         return None if statistic is None else mean_rows.get(statistic, {}).get(at)
 
     hours = []
-    at = start
+    at = first
     while at < end:
+        heat_loss_w = mean(sources.heat_loss, at)
         hours.append(
             HourHistory(
                 start=at,
-                outdoor_temperature=value(sources.outdoor_temperature, at),
-                price=value(sources.price, at),
+                outdoor_temperature=mean(sources.outdoor_temperature, at),
+                energy_price=mean(sources.energy_price, at),
+                heat_loss_kw=None
+                if heat_loss_w is None
+                else heat_loss_w / WATTS_PER_KW,
+                heater_power_kw=mean(sources.heater_power, at),
                 energy_kwh=_energy(sources.energy_meters, change_rows, at),
-                indoor_temperature=value(sources.indoor_temperature, at),
+                indoor_temperature=mean(sources.indoor_temperature, at),
             )
         )
         at += HOUR
     return hours
+
+
+def _first_hour(*tables: dict[str, dict[datetime, float]]) -> datetime | None:
+    """The earliest hour any of the statistics has a value for."""
+    starts = [min(rows) for table in tables for rows in table.values() if rows]
+    return min(starts) if starts else None
 
 
 def _energy(

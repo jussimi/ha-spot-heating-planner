@@ -45,6 +45,12 @@ class Memory:
     """The local date (ISO) whose day-ahead forecast has been taken."""
     day_ahead_energy_total: float = 0.0
     day_ahead_cost_total: float = 0.0
+    comparison_through: datetime | None = None
+    """The comparison series are written up to here."""
+    comparison_totals: dict[str, float] = field(default_factory=dict)
+    """Each comparison series' running total, by its key."""
+    comparison_temperatures: list[float] | None = None
+    """The temperatures the series were written for; a change starts over."""
 
 
 class SpaceStore:
@@ -87,6 +93,9 @@ def _to_json(memory: Memory) -> dict[str, Any]:
         "day_ahead_date": memory.day_ahead_date,
         "day_ahead_energy_total": memory.day_ahead_energy_total,
         "day_ahead_cost_total": memory.day_ahead_cost_total,
+        "comparison_through": _time_to_json(memory.comparison_through),
+        "comparison_totals": memory.comparison_totals,
+        "comparison_temperatures": memory.comparison_temperatures,
     }
 
 
@@ -102,6 +111,11 @@ def _from_json(data: dict[str, Any]) -> Memory:
         day_ahead_date=data.get("day_ahead_date"),
         day_ahead_energy_total=float(data.get("day_ahead_energy_total", 0.0)),
         day_ahead_cost_total=float(data.get("day_ahead_cost_total", 0.0)),
+        comparison_through=_time_from_json(data.get("comparison_through")),
+        comparison_totals={
+            str(k): float(v) for k, v in data.get("comparison_totals", {}).items()
+        },
+        comparison_temperatures=data.get("comparison_temperatures"),
     )
 
 
