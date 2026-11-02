@@ -1,0 +1,11 @@
+# A throwaway Home Assistant for trying the integration in a browser,
+# without touching a real installation. Start: docker compose -f dev/compose.yaml up
+# Then open http://localhost:8123. Never add real heaters or plugs here.
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.10
+    volumes:
+      - ./config:/config
+      - ../custom_components:/config/custom_components:ro
+    ports:
+      - "8123:8123"

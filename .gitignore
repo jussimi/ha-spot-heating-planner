@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# The local development Home Assistant (dev/compose.yaml); only its
+# configuration.yaml is tracked
+dev/config/*
+!dev/config/configuration.yaml
+
+# Editors and macOS
+.vscode/
+.idea/
+.DS_Store

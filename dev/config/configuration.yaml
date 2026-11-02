@@ -1,0 +1,64 @@
+# A fake space for the development Home Assistant: drag the sliders to play
+# the sensors, and watch the "heater" switch follow the planner.
+default_config:
+
+logger:
+  default: info
+  logs:
+    custom_components.spot_heating_planner: debug
+
+input_number:
+  fake_indoor_temperature:
+    name: Fake indoor temperature
+    min: -10
+    max: 25
+    step: 0.1
+    initial: 6
+    unit_of_measurement: "°C"
+  fake_indoor_humidity:
+    name: Fake indoor humidity
+    min: 30
+    max: 100
+    step: 1
+    initial: 70
+    unit_of_measurement: "%"
+  fake_outdoor_temperature:
+    name: Fake outdoor temperature
+    min: -30
+    max: 30
+    step: 0.5
+    initial: -5
+    unit_of_measurement: "°C"
+
+input_boolean:
+  fake_heater:
+    name: Fake heater
+
+template:
+  - sensor:
+      - name: Fake indoor temperature sensor
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: "{{ states('input_number.fake_indoor_temperature') }}"
+      - name: Fake indoor humidity sensor
+        unit_of_measurement: "%"
+        device_class: humidity
+        state_class: measurement
+        state: "{{ states('input_number.fake_indoor_humidity') }}"
+      - name: Fake outdoor temperature sensor
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: "{{ states('input_number.fake_outdoor_temperature') }}"
+  - switch:
+      - name: Fake heater switch
+        state: "{{ is_state('input_boolean.fake_heater', 'on') }}"
+        turn_on:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.fake_heater
+        turn_off:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.fake_heater

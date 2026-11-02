@@ -1,0 +1,58 @@
+[project]
+name = "ha-spot-heating-planner"
+version = "0.1.0"
+description = "Home Assistant integration: frost and moisture protection heating planned on spot prices"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+
+[dependency-groups]
+dev = [
+    "pytest-homeassistant-custom-component",  # brings a matching homeassistant
+    "mypy",
+    "ruff",
+    "pre-commit",
+]
+
+[tool.uv]
+package = false  # an integration folder, not an installable package
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["ALL"]  # strict: every rule set, with the exceptions listed below
+ignore = [
+    "D203",    # conflicts with D211 (no blank line before a class docstring)
+    "D213",    # conflicts with D212 (summary on the first docstring line)
+    "D401",    # docstrings may start with a noun: "The samples inside the window."
+    "COM812",  # conflicts with the formatter
+    "ISC001",  # conflicts with the formatter
+    "CPY001",  # the LICENSE file covers copyright
+    "ERA001",  # flags formula comments such as "k = -ln(a)" as dead code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",     # assert is how tests check
+    "PLR2004",  # literal numbers are the point of a test case
+    "S311",     # random is fine for synthetic test data
+    "D",        # test names say what they test
+    "INP001",   # test folders need no __init__.py
+]
+"scripts/**" = ["T201", "S311", "INP001"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+explicit_package_bases = true
+files = ["custom_components", "tests"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
