@@ -62,7 +62,7 @@
           "vat_percent": "VAT"
         },
         "data_description": {
-          "nordpool_area": "For example FI, SE3 or DK1."
+          "nordpool_area": "The areas your Nord Pool integration fetches prices for."
         }
       },
       "price_entity": {
@@ -78,6 +78,9 @@
           "vat_percent": "0 if the entity's prices already include VAT."
         }
       }
+    },
+    "error": {
+      "area_not_fetched": "That Nord Pool entry doesn't fetch this area. Add the area in Nord Pool's settings, or choose another."
     },
     "abort": {
       "nordpool_missing": "Set up the Nord Pool integration first, or choose another price source."

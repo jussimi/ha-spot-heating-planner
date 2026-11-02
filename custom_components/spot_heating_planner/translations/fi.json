@@ -62,7 +62,7 @@
           "vat_percent": "ALV"
         },
         "data_description": {
-          "nordpool_area": "Esimerkiksi FI, SE3 tai DK1."
+          "nordpool_area": "Alueet, joiden hinnat Nord Pool -integraatio hakee."
         }
       },
       "price_entity": {
@@ -78,6 +78,9 @@
           "vat_percent": "0, jos entiteetin hinnoissa on jo ALV."
         }
       }
+    },
+    "error": {
+      "area_not_fetched": "Valittu Nord Pool -integraatio ei hae tämän alueen hintoja. Lisää alue Nord Poolin asetuksiin tai valitse toinen."
     },
     "abort": {
       "nordpool_missing": "Ota ensin Nord Pool -integraatio käyttöön tai valitse toinen hintalähde."

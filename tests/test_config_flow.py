@@ -92,6 +92,47 @@ async def test_the_nord_pool_entry_is_chosen_for_you(hass: HomeAssistant) -> Non
     assert defaults[CONF_NORDPOOL_ENTRY] == nordpool.entry_id
 
 
+async def test_the_area_is_chosen_from_nord_pools_areas(hass: HomeAssistant) -> None:
+    MockConfigEntry(
+        domain="nordpool", data={"areas": ["FI", "EE"], "currency": "EUR"}
+    ).add_to_hass(hass)
+    MockConfigEntry(
+        domain="nordpool", data={"areas": ["SE3", "FI"], "currency": "SEK"}
+    ).add_to_hass(hass)
+    flow_id = await start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        flow_id, {CONF_PRICE_SOURCE: PRICE_SOURCE_NORDPOOL_ACTION}
+    )
+    fields = {field["name"]: field for field in form_fields(result)}
+    area = fields[CONF_NORDPOOL_AREA]
+    assert area["selector"]["select"]["options"] == ["FI", "EE", "SE3"]
+    assert area["default"] == "FI"
+    assert fields[CONF_CURRENCY]["default"] == "EUR"  # the first entry's
+
+
+async def test_an_area_the_entry_doesnt_fetch_is_refused(hass: HomeAssistant) -> None:
+    finland = MockConfigEntry(domain="nordpool", data={"areas": ["FI"]})
+    finland.add_to_hass(hass)
+    MockConfigEntry(domain="nordpool", data={"areas": ["SE3"]}).add_to_hass(hass)
+    flow_id = await start(hass)
+    await hass.config_entries.flow.async_configure(
+        flow_id, {CONF_PRICE_SOURCE: PRICE_SOURCE_NORDPOOL_ACTION}
+    )
+    answers = {
+        CONF_NORDPOOL_ENTRY: finland.entry_id,
+        CONF_NORDPOOL_AREA: "SE3",
+        CONF_CURRENCY: "EUR",
+        CONF_VAT_PERCENT: 25.5,
+    }
+    result = await hass.config_entries.flow.async_configure(flow_id, answers)
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_NORDPOOL_AREA: "area_not_fetched"}
+    result = await hass.config_entries.flow.async_configure(
+        flow_id, {**answers, CONF_NORDPOOL_AREA: "FI"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
 async def test_nord_pool_without_the_integration_stops(hass: HomeAssistant) -> None:
     flow_id = await start(hass)
     result = await hass.config_entries.flow.async_configure(
@@ -202,7 +243,7 @@ def unshowable_fields(result: FlowResult[Any, Any]) -> list[str]:
 
 
 async def test_every_form_can_be_shown(hass: HomeAssistant) -> None:
-    MockConfigEntry(domain="nordpool", title="Nord Pool").add_to_hass(hass)
+    MockConfigEntry(domain="nordpool", data={"areas": ["FI"]}).add_to_hass(hass)
     forms = []
     for source in (PRICE_SOURCE_NORDPOOL_ACTION, PRICE_SOURCE_ENTITY):
         result = await hass.config_entries.flow.async_init(

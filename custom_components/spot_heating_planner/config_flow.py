@@ -71,6 +71,7 @@ DEFAULT_VAT_PERCENT = 25.5
 SWITCHABLE = ["switch", "input_boolean", "light", "fan"]
 MAX_VAT_PERCENT = 50
 NORDPOOL = "nordpool"
+NORDPOOL_AREAS = "areas"
 
 
 def _entity(
@@ -128,22 +129,35 @@ PRICES_SCHEMA = probatio.Schema(
 )
 
 
-def _nordpool_schema(entry_id: str) -> probatio.Schema:
-    """The Nord Pool step, with the given entry chosen.
+def _nordpool_schema(entries: list[ConfigEntry]) -> probatio.Schema:
+    """The Nord Pool step, with the first entry, its first area and currency chosen.
 
     The entry picker needs a default: the frontend can't make up a starting
-    value for a config entry, and shows no form at all.
+    value for a config entry, and shows no form at all. The areas are those
+    the Nord Pool entries fetch.
     """
-    return probatio.Schema(
-        {
-            probatio.Required(
-                CONF_NORDPOOL_ENTRY, default=entry_id
-            ): ConfigEntrySelector(ConfigEntrySelectorConfig(integration=NORDPOOL)),
-            probatio.Required(CONF_NORDPOOL_AREA): TextSelector(),
-            probatio.Required(CONF_CURRENCY, default=DEFAULT_CURRENCY): TextSelector(),
-            probatio.Required(CONF_VAT_PERCENT, default=DEFAULT_VAT_PERCENT): _vat(),
-        }
-    )
+    first = entries[0]
+    fields: dict[probatio.Marker, Any] = {
+        probatio.Required(
+            CONF_NORDPOOL_ENTRY, default=first.entry_id
+        ): ConfigEntrySelector(ConfigEntrySelectorConfig(integration=NORDPOOL))
+    }
+    if areas := _nordpool_areas(entries):
+        fields[probatio.Required(CONF_NORDPOOL_AREA, default=areas[0])] = (
+            SelectSelector(SelectSelectorConfig(options=areas))
+        )
+    else:  # entries that don't list their areas: type one in
+        fields[probatio.Required(CONF_NORDPOOL_AREA)] = TextSelector()
+    currency = first.data.get(CONF_CURRENCY, DEFAULT_CURRENCY)
+    fields[probatio.Required(CONF_CURRENCY, default=currency)] = TextSelector()
+    fields[probatio.Required(CONF_VAT_PERCENT, default=DEFAULT_VAT_PERCENT)] = _vat()
+    return probatio.Schema(fields)
+
+
+def _nordpool_areas(entries: list[ConfigEntry]) -> list[str]:
+    """The price areas the Nord Pool entries fetch, each once, in order."""
+    areas = (area for entry in entries for area in entry.data.get(NORDPOOL_AREAS, []))
+    return list(dict.fromkeys(areas))
 
 
 PRICE_ENTITY_SCHEMA = probatio.Schema(
@@ -219,8 +233,17 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
         entries = self.hass.config_entries.async_entries(NORDPOOL)
         if not entries:
             return self.async_abort(reason="nordpool_missing")
+        schema = _nordpool_schema(entries)
         if user_input is None:
-            return self._form("nordpool", _nordpool_schema(entries[0].entry_id))
+            return self._form("nordpool", schema)
+        chosen = self.hass.config_entries.async_get_entry(
+            user_input[CONF_NORDPOOL_ENTRY]
+        )
+        fetched = _nordpool_areas([chosen]) if chosen else []
+        if fetched and user_input[CONF_NORDPOOL_AREA] not in fetched:
+            return self._form(
+                "nordpool", schema, errors={CONF_NORDPOOL_AREA: "area_not_fetched"}
+            )
         return self._finish(
             {CONF_PRICE_SOURCE: PRICE_SOURCE_NORDPOOL_ACTION, **user_input}
         )
@@ -233,11 +256,17 @@ class SpotHeatingConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._form("price_entity", PRICE_ENTITY_SCHEMA)
         return self._finish({CONF_PRICE_SOURCE: PRICE_SOURCE_ENTITY, **user_input})
 
-    def _form(self, step_id: str, schema: probatio.Schema) -> ConfigFlowResult:
+    def _form(
+        self,
+        step_id: str,
+        schema: probatio.Schema,
+        errors: dict[str, str] | None = None,
+    ) -> ConfigFlowResult:
         """Show a step; when reconfiguring, with the current answers filled in."""
         return self.async_show_form(
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(schema, self._current()),
+            errors=errors,
         )
 
     def _current(self) -> dict[str, Any]:
