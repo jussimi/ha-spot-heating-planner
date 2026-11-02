@@ -1,0 +1,223 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Lämmitettävä tila",
+        "description": "Tila, joka pidetään pakkaselta ja kosteudelta suojassa, sekä sen lämmittimet ja anturit.",
+        "data": {
+          "name": "Nimi",
+          "heaters": "Lämmittimet",
+          "indoor_temperature": "Sisälämpötila",
+          "indoor_humidity": "Sisäilman kosteus",
+          "outdoor_temperature": "Ulkolämpötila",
+          "outdoor_humidity": "Ulkoilman kosteus",
+          "energy_sensors": "Lämmittimien energiamittarit",
+          "weather": "Sääennuste"
+        },
+        "data_description": {
+          "heaters": "Kytkimet, pistorasiat tai muut päälle/pois-entiteetit, joilla lämmittimet ohjataan.",
+          "indoor_humidity": "Valinnainen. Ilman sitä lämmitys suojaa vain pakkaselta.",
+          "outdoor_temperature": "Valinnainen, mutta tilan oppiminen tarvitsee sen.",
+          "outdoor_humidity": "Valinnainen. Antaa suunnittelijan lämmittää tilaa ennen kuin kostea ulkoilma tulee.",
+          "energy_sensors": "Valinnaiset lämmittimien kWh-laskurit. Tarkentavat oppimista ja kustannuksia.",
+          "weather": "Valinnainen. Suunnittelija käyttää sen tunneittaista ennustetta."
+        }
+      },
+      "reconfigure": {
+        "title": "Muuta lämmitettävää tilaa",
+        "description": "Muuta lämmittimiä ja antureita. Tilan oppimat tiedot säilyvät.",
+        "data": {
+          "name": "Nimi",
+          "heaters": "Lämmittimet",
+          "indoor_temperature": "Sisälämpötila",
+          "indoor_humidity": "Sisäilman kosteus",
+          "outdoor_temperature": "Ulkolämpötila",
+          "outdoor_humidity": "Ulkoilman kosteus",
+          "energy_sensors": "Lämmittimien energiamittarit",
+          "weather": "Sääennuste"
+        },
+        "data_description": {
+          "heaters": "Kytkimet, pistorasiat tai muut päälle/pois-entiteetit, joilla lämmittimet ohjataan.",
+          "indoor_humidity": "Valinnainen. Ilman sitä lämmitys suojaa vain pakkaselta.",
+          "outdoor_temperature": "Valinnainen, mutta tilan oppiminen tarvitsee sen.",
+          "outdoor_humidity": "Valinnainen. Antaa suunnittelijan lämmittää tilaa ennen kuin kostea ulkoilma tulee.",
+          "energy_sensors": "Valinnaiset lämmittimien kWh-laskurit. Tarkentavat oppimista ja kustannuksia.",
+          "weather": "Valinnainen. Suunnittelija käyttää sen tunneittaista ennustetta."
+        }
+      },
+      "prices": {
+        "title": "Pörssisähkön hinnat",
+        "description": "Mistä suunnittelija saa sähkön tuntihinnat.",
+        "data": {
+          "price_source": "Hintalähde"
+        }
+      },
+      "nordpool": {
+        "title": "Nord Pool",
+        "description": "Hinnat virallisesta Nord Pool -integraatiosta.",
+        "data": {
+          "nordpool_entry": "Nord Pool -integraatio",
+          "nordpool_area": "Hinta-alue",
+          "currency": "Valuutta",
+          "vat_percent": "ALV"
+        },
+        "data_description": {
+          "nordpool_area": "Esimerkiksi FI, SE3 tai DK1."
+        }
+      },
+      "price_entity": {
+        "title": "Hintaentiteetti",
+        "description": "Entiteetti, jonka attribuuteissa on hintalista.",
+        "data": {
+          "price_entity": "Hintaentiteetti",
+          "price_format": "Muoto",
+          "vat_percent": "Lisättävä ALV",
+          "currency": "Valuutta"
+        },
+        "data_description": {
+          "vat_percent": "0, jos entiteetin hinnoissa on jo ALV."
+        }
+      }
+    }
+  },
+  "selector": {
+    "price_source": {
+      "options": {
+        "nordpool_action": "Nord Pool -integraatio",
+        "entity": "Entiteetti, jossa on hintalista",
+        "none": "Ei hintoja (vain pakkas- ja kosteussuojaus)"
+      }
+    },
+    "price_format": {
+      "options": {
+        "spot_heating_planner": "Spot Heating Planner -muoto (c/kWh sis. ALV)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "mode": {
+        "name": "Tila",
+        "state": {
+          "sensor_fault": "Anturivika",
+          "emergency": "Pakkashälytys",
+          "max_temp": "Maksimissa",
+          "calibrating": "Kalibroidaan",
+          "override": "Ohitus",
+          "frost": "Pakkassuojaus",
+          "humidity_critical": "Kriittinen kosteus",
+          "humidity": "Kosteus",
+          "dew_point": "Kastepiste",
+          "preheat": "Esilämmitys",
+          "price_ceiling": "Odottaa halvempaa tuntia",
+          "idle": "Lepää"
+        }
+      },
+      "next_heating": {
+        "name": "Seuraava lämmitys"
+      },
+      "planned_heating": {
+        "name": "Suunniteltu lämmitys, 24 h"
+      },
+      "planned_cost": {
+        "name": "Suunniteltu kustannus, 24 h"
+      },
+      "heating_cost": {
+        "name": "Lämmityskustannus"
+      },
+      "coasting_hours": {
+        "name": "Pärjää ilman lämmitystä"
+      },
+      "room_status": {
+        "name": "Tilan malli",
+        "state": {
+          "learning": "Oppii",
+          "learned": "Opittu",
+          "manual": "Asetettu käsin"
+        }
+      },
+      "heat_loss": {
+        "name": "Lämpöhäviö"
+      },
+      "heat_capacity": {
+        "name": "Lämpökapasiteetti"
+      },
+      "max_rise": {
+        "name": "Lämmittimet pitävät yli ulkolämpötilan"
+      },
+      "half_life": {
+        "name": "Lämmön puoliintumisaika"
+      },
+      "heater_power": {
+        "name": "Lämmitysteho"
+      }
+    },
+    "binary_sensor": {
+      "heating": {
+        "name": "Lämmitys"
+      },
+      "target_unreachable": {
+        "name": "Ei pysy tavoitteessa"
+      },
+      "sensor_stuck": {
+        "name": "Sisäanturi jumissa"
+      }
+    },
+    "number": {
+      "min_temperature": {
+        "name": "Minimilämpötila"
+      },
+      "max_temperature": {
+        "name": "Maksimilämpötila"
+      },
+      "frost_limit": {
+        "name": "Pakkasraja"
+      },
+      "override_temperature": {
+        "name": "Ohituksen lämpötila"
+      },
+      "override_hours": {
+        "name": "Ohituksen kesto"
+      },
+      "humidity_target": {
+        "name": "Kosteustavoite"
+      },
+      "humidity_target_max": {
+        "name": "Kosteustavoite kylmässä"
+      },
+      "dew_point_margin": {
+        "name": "Kastepistemarginaali"
+      },
+      "price_ceiling": {
+        "name": "Hintakatto"
+      },
+      "fixed_energy_cost": {
+        "name": "Kiinteä energiakustannus"
+      },
+      "heater_power": {
+        "name": "Lämmitysteho"
+      }
+    },
+    "switch": {
+      "control": {
+        "name": "Ohjaa lämmittimiä"
+      }
+    },
+    "button": {
+      "start_override": {
+        "name": "Aloita ohitus"
+      },
+      "cancel_override": {
+        "name": "Peru ohitus"
+      },
+      "calibrate": {
+        "name": "Kalibroi"
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_setting": {
+      "message": "Arvo on ristiriidassa muiden asetusten kanssa: {problems}"
+    }
+  }
+}
