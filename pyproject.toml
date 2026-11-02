@@ -40,6 +40,9 @@ ignore = [
     "S311",     # random is fine for synthetic test data
     "D",        # test names say what they test
     "INP001",   # test folders need no __init__.py
+    "TC",       # type-only imports may stay plain in tests
+    "EM101",    # fake services may raise with a literal message
+    "TRY003",
 ]
 "scripts/**" = ["T201", "S311", "INP001"]
 
@@ -51,6 +54,10 @@ python_version = "3.14"
 strict = true
 explicit_package_bases = true
 files = ["custom_components", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["pytest_homeassistant_custom_component.*"]
+ignore_missing_imports = true  # the test plugin ships no type information
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
