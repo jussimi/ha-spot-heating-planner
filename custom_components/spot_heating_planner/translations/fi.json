@@ -122,6 +122,12 @@
       "planned_cost": {
         "name": "Suunniteltu kustannus, 24 h"
       },
+      "spot_price": {
+        "name": "Pörssisähkön hinta"
+      },
+      "heating_energy": {
+        "name": "Lämmitysenergia"
+      },
       "heating_cost": {
         "name": "Lämmityskustannus"
       },

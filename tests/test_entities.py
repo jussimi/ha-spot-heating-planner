@@ -115,3 +115,22 @@ async def test_control_switch_pauses(
     await press(hass, "button.garage_start_override")
     assert state(hass, "sensor.garage_mode") == "override"
     assert state(hass, HEATER) == STATE_OFF  # paused: left alone
+
+
+async def test_spot_price_shows_the_hour_and_the_known_prices(
+    hass: HomeAssistant, garage: MockConfigEntry
+) -> None:
+    del garage
+    price = hass.states.get("sensor.garage_spot_price")
+    assert price is not None
+    assert float(price.state) == 10.0  # the fake price list
+    forecast = price.attributes["forecast"]
+    assert forecast[0]["price"] == 10.0
+    assert {"start", "price"} <= set(forecast[0])
+
+
+async def test_heating_energy_starts_at_zero(
+    hass: HomeAssistant, garage: MockConfigEntry
+) -> None:
+    del garage
+    assert state(hass, "sensor.garage_heating_energy") == "0.0"

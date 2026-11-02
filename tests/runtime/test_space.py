@@ -275,3 +275,34 @@ async def test_paused_space_leaves_the_heaters_alone(
     assert space.data.decision.mode == "calibrating"
     assert not space.data.enabled
     del switch_calls
+
+
+async def test_heating_energy_counts_measured_kwh(
+    hass: HomeAssistant, switch_calls: list[str]
+) -> None:
+    space = await started(hass)
+    await space.async_tick(minutes_later(1))
+    set_energy(hass, 100.3)
+    await space.async_tick(minutes_later(2))
+    assert space.data.energy_total == pytest.approx(0.3)
+    await space.async_stop()
+    del switch_calls
+
+
+async def test_the_first_meter_reading_counts_nothing(
+    hass: HomeAssistant, switch_calls: list[str]
+) -> None:
+    space = await started(hass)  # heating while calibrating
+    assert space.data.energy_total == 0.0
+    await space.async_stop()
+    del switch_calls
+
+
+async def test_known_room_plans_hour_costs(known_space: Space) -> None:
+    plan = known_space.data.plan
+    assert plan is not None
+    costs = known_space.data.hour_costs
+    assert costs
+    for cost, hour in zip(costs, plan.hours, strict=True):
+        expected = hour.minutes / 60  # 1 kW heater
+        assert cost.energy_kwh == pytest.approx(expected)

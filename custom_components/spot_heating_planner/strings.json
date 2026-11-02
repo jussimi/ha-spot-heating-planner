@@ -122,6 +122,12 @@
       "planned_cost": {
         "name": "Planned cost, next 24 h"
       },
+      "spot_price": {
+        "name": "Spot price"
+      },
+      "heating_energy": {
+        "name": "Heating energy"
+      },
       "heating_cost": {
         "name": "Heating cost"
       },

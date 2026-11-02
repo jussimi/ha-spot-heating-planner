@@ -2,7 +2,7 @@
 
 Kept in .storage/spot_heating_planner.<entry id>: the logged learning steps,
 a calibration run's start, when a manual override ends, whether control is
-paused, and the heating cost so far.
+paused, and the heating energy and cost so far.
 """
 
 from dataclasses import dataclass, field
@@ -36,6 +36,8 @@ class Memory:
     """Whether the space switches its heaters; off pauses control."""
     cost_total: float = 0.0
     """Heating cost so far, in currency units incl. fixed costs."""
+    energy_total: float = 0.0
+    """Heating energy so far, kWh: measured, or estimated without meters."""
 
 
 class SpaceStore:
@@ -73,6 +75,7 @@ def _to_json(memory: Memory) -> dict[str, Any]:
         "override_until": _time_to_json(memory.override_until),
         "enabled": memory.enabled,
         "cost_total": memory.cost_total,
+        "energy_total": memory.energy_total,
     }
 
 
@@ -83,6 +86,7 @@ def _from_json(data: dict[str, Any]) -> Memory:
         override_until=_time_from_json(data.get("override_until")),
         enabled=bool(data.get("enabled", True)),
         cost_total=float(data.get("cost_total", 0.0)),
+        energy_total=float(data.get("energy_total", 0.0)),
     )
 
 

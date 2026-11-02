@@ -11,6 +11,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import (
     EntityCategory,
+    UnitOfEnergy,
     UnitOfPower,
     UnitOfTemperature,
     UnitOfTime,
@@ -92,6 +93,21 @@ SENSORS: tuple[SpaceSensorDescription, ...] = (
         device_class=SensorDeviceClass.MONETARY,
         suggested_display_precision=2,
         value=lambda s: s.summary.cost if s.summary else None,
+    ),
+    SpaceSensorDescription(
+        key="spot_price",
+        native_unit_of_measurement="c/kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value=lambda s: s.price_now,
+    ),
+    SpaceSensorDescription(
+        key="heating_energy",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=2,
+        value=lambda s: s.energy_total,
     ),
     SpaceSensorDescription(
         key="heating_cost",
@@ -187,26 +203,49 @@ class SpaceSensor(SpaceEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """The mode sensor carries the plan, for dashboards and charts."""
-        if self.entity_description.key != "mode":
-            return None
-        return plan_attributes(self.coordinator.data)
+        """The mode carries the plan, the spot price the known prices."""
+        key = self.entity_description.key
+        if key == "mode":
+            return plan_attributes(self.coordinator.data)
+        if key == "spot_price":
+            return price_attributes(self.coordinator.data)
+        return None
 
 
 def plan_attributes(state: SpaceState) -> dict[str, Any]:
-    """The plan and the humidity limits, in plain values."""
+    """The plan hour by hour, and the humidity limits, in plain values.
+
+    Each hour: heating minutes, spot price, predicted indoor temperature at
+    its end, and the planned energy (kWh) and cost (incl. fixed costs).
+    """
     plan = state.plan
-    return {
-        "humidity_target": plan.humidity_target if plan else None,
-        "humidity_critical": plan.humidity_critical if plan else None,
-        "override_until": state.override_until,
-        "plan": [
+    costs = {c.start: c for c in state.hour_costs}
+    hours = []
+    for hour in plan.hours if plan else []:
+        cost = costs.get(hour.start)
+        hours.append(
             {
                 "start": hour.start.isoformat(),
                 "minutes": hour.minutes,
                 "price": hour.price,
                 "temperature": hour.temperature,
+                "energy_kwh": round(cost.energy_kwh, 3) if cost else None,
+                "cost": round(cost.cost, 4) if cost else None,
             }
-            for hour in (plan.hours if plan else [])
-        ],
+        )
+    return {
+        "humidity_target": plan.humidity_target if plan else None,
+        "humidity_critical": plan.humidity_critical if plan else None,
+        "override_until": state.override_until,
+        "plan": hours,
+    }
+
+
+def price_attributes(state: SpaceState) -> dict[str, Any]:
+    """The known hourly prices, in this integration's own price format."""
+    return {
+        "forecast": [
+            {"start": start.isoformat(), "price": round(price, 3)}
+            for start, price in state.prices
+        ]
     }

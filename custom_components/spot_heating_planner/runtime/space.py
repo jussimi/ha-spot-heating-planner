@@ -52,9 +52,11 @@ from ..core import calibration, humidity, learning, safety, sensors
 from ..core.control import Decision, decide
 from ..core.options import config_from_options
 from ..core.planner import (
+    HourCost,
     Inputs,
     Plan,
     PlanSummary,
+    hour_costs,
     plan_hour,
     summarize,
     thermostat,
@@ -154,6 +156,13 @@ class SpaceState:
     sensor_stuck: bool
     enabled: bool
     cost_total: float
+    energy_total: float
+    price_now: float | None
+    """This hour's spot price, c/kWh incl. VAT."""
+    prices: list[tuple[datetime, float]]
+    """The known hourly prices from this hour on."""
+    hour_costs: list[HourCost]
+    """Planned energy and cost of each hour in the plan."""
     summary: PlanSummary | None
     """The plan over the next SUMMARY_HOURS, once the room is known."""
 
@@ -292,7 +301,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
         elif self._plan is None and self._room().heated_room is not None:
             await self._replan(now)
 
-        self._count_cost(now)
+        self._count_energy(now)
         decision = await self._act(now)
         self._count_minute(now, heating=decision.heat)
 
@@ -501,25 +510,31 @@ class Space(DataUpdateCoordinator[SpaceState]):
 
     # --- Cost ------------------------------------------------------------------------
 
-    def _count_cost(self, now: datetime) -> None:
-        """Add the minute that just ended to the heating cost.
+    def _count_energy(self, now: datetime) -> None:
+        """Add the minute that just ended to the heating energy and cost.
 
         Measured energy if there are meters, else the heaters' power while they
         were on; priced at this hour's spot price plus the fixed costs.
         """
         energy_now = self._energy()
-        if energy_now is not None and self._last_energy is not None:
-            kwh = max(0.0, energy_now - self._last_energy)
+        if energy_now is not None:
+            # A meter: its change since the last minute (none on the first
+            # reading, and none across a counter reset)
+            last = self._last_energy
+            kwh = 0.0 if last is None else max(0.0, energy_now - last)
         elif self._heating:
             kwh = self._heater_power() / MINUTES_PER_HOUR
         else:
             kwh = 0.0
         self._last_energy = energy_now
+        if kwh <= 0:
+            return
+        self._memory.energy_total += kwh
+        self._store.save_soon(self._memory)
         price = self._price_at(now)
-        if kwh > 0 and price is not None:
+        if price is not None:
             cents = kwh * (price + self.cfg.prices.fixed_energy_cost)
             self._memory.cost_total += cents / CENTS_PER_UNIT
-            self._store.save_soon(self._memory)
 
     def _heater_power(self) -> float:
         estimate = self._estimate
@@ -530,6 +545,12 @@ class Space(DataUpdateCoordinator[SpaceState]):
     def _price_at(self, now: datetime) -> float | None:
         hour = now.replace(minute=0, second=0, microsecond=0)
         return next((p for start, p in self._prices if start == hour), None)
+
+    def _hour_costs(self) -> list[HourCost]:
+        heated_room = self._room().heated_room
+        if self._plan is None or heated_room is None:
+            return []
+        return hour_costs(self._plan, heated_room, self.cfg)
 
     def _summary(self, now: datetime) -> PlanSummary | None:
         heated_room = self._room().heated_room
@@ -551,5 +572,9 @@ class Space(DataUpdateCoordinator[SpaceState]):
             sensor_stuck=self._sensor_stuck(),
             enabled=self._memory.enabled,
             cost_total=self._memory.cost_total,
+            energy_total=self._memory.energy_total,
+            price_now=self._price_at(now),
+            prices=self._prices,
+            hour_costs=self._hour_costs(),
             summary=self._summary(now),
         )

@@ -544,6 +544,28 @@ CENTS_PER_UNIT = 100.0
 
 
 @dataclass(frozen=True, kw_only=True)
+class HourCost:
+    """What one planned hour uses and costs."""
+
+    start: datetime
+    energy_kwh: float
+    cost: float
+    """In currency units (euros, not cents), incl. fixed costs."""
+
+
+def hour_costs(plan: Plan, heated_room: HeatedRoom, cfg: Config) -> list[HourCost]:
+    """Energy and cost of every planned hour, at the heaters' power."""
+    costs = []
+    for hour in plan.hours:
+        energy = heated_room.heater_power_kw * hour.minutes / MINUTES_PER_HOUR
+        cents = energy * (hour.price + cfg.prices.fixed_energy_cost)
+        costs.append(
+            HourCost(start=hour.start, energy_kwh=energy, cost=cents / CENTS_PER_UNIT)
+        )
+    return costs
+
+
+@dataclass(frozen=True, kw_only=True)
 class PlanSummary:
     """What the plan will do over the coming hours."""
 
@@ -561,17 +583,10 @@ def summarize(
     plan: Plan, heated_room: HeatedRoom, cfg: Config, *, until: datetime
 ) -> PlanSummary:
     """Totals over the planned hours that start before `until`."""
-    hours = [h for h in plan.hours if h.start < until]
-    heating = [h for h in hours if h.minutes > 0]
-    cost_cents = sum(
-        heated_room.heater_power_kw
-        * h.minutes
-        / MINUTES_PER_HOUR
-        * (h.price + cfg.prices.fixed_energy_cost)
-        for h in heating
-    )
+    heating = [h for h in plan.hours if h.start < until and h.minutes > 0]
+    costs = [c for c in hour_costs(plan, heated_room, cfg) if c.start < until]
     return PlanSummary(
         next_heating=heating[0].start if heating else None,
         heating_hours=sum(h.minutes for h in heating) / MINUTES_PER_HOUR,
-        cost=cost_cents / CENTS_PER_UNIT,
+        cost=sum(c.cost for c in costs),
     )

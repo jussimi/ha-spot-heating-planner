@@ -7,6 +7,7 @@ import pytest
 
 from custom_components.spot_heating_planner.core.planner import (
     NO_OUTSIDE_DATA_T,
+    hour_costs,
     outside_conditions,
     plan_hour,
     summarize,
@@ -279,3 +280,14 @@ def test_summary_of_an_idle_plan() -> None:
     assert summary.next_heating is None
     assert summary.heating_hours == 0
     assert summary.cost == 0
+
+
+def test_hour_costs_price_each_hour_with_the_fixed_part() -> None:
+    plan = plan_hour(
+        inputs(indoor_temperature=3.5, outdoor_temperature=-10), CFG, HEATED_ROOM
+    )
+    for cost, hour in zip(hour_costs(plan, HEATED_ROOM, CFG), plan.hours, strict=True):
+        energy = hour.minutes / 60 * HEATED_ROOM.heater_power_kw
+        assert cost.energy_kwh == pytest.approx(energy)
+        expected = energy * (hour.price + CFG.prices.fixed_energy_cost) / 100
+        assert cost.cost == pytest.approx(expected)
