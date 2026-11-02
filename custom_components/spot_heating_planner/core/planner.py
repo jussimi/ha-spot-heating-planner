@@ -535,3 +535,43 @@ def thermostat(inp: Inputs, cfg: Config, *, heating: bool) -> ThermostatDecision
     ):
         return ThermostatDecision("price_ceiling", heat=False)
     return ThermostatDecision("idle", heat=False)
+
+
+# --- A summary for the dashboard ------------------------------------------------
+
+
+CENTS_PER_UNIT = 100.0
+
+
+@dataclass(frozen=True, kw_only=True)
+class PlanSummary:
+    """What the plan will do over the coming hours."""
+
+    next_heating: datetime | None
+    """Start of the first hour that heats; None if none does."""
+
+    heating_hours: float
+    """Hours of heating planned."""
+
+    cost: float
+    """Planned cost in currency units (euros, not cents), incl. fixed costs."""
+
+
+def summarize(
+    plan: Plan, heated_room: HeatedRoom, cfg: Config, *, until: datetime
+) -> PlanSummary:
+    """Totals over the planned hours that start before `until`."""
+    hours = [h for h in plan.hours if h.start < until]
+    heating = [h for h in hours if h.minutes > 0]
+    cost_cents = sum(
+        heated_room.heater_power_kw
+        * h.minutes
+        / MINUTES_PER_HOUR
+        * (h.price + cfg.prices.fixed_energy_cost)
+        for h in heating
+    )
+    return PlanSummary(
+        next_heating=heating[0].start if heating else None,
+        heating_hours=sum(h.minutes for h in heating) / MINUTES_PER_HOUR,
+        cost=cost_cents / CENTS_PER_UNIT,
+    )

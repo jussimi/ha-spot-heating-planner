@@ -1,0 +1,201 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Heated space",
+        "description": "The space to keep frost-free and dry, its heaters and sensors.",
+        "data": {
+          "name": "Name",
+          "heaters": "Heaters",
+          "indoor_temperature": "Indoor temperature",
+          "indoor_humidity": "Indoor humidity",
+          "outdoor_temperature": "Outdoor temperature",
+          "outdoor_humidity": "Outdoor humidity",
+          "energy_sensors": "Heaters' energy meters",
+          "weather": "Weather forecast"
+        },
+        "data_description": {
+          "heaters": "Switches, plugs or other on/off entities that power the heaters.",
+          "indoor_humidity": "Optional. Without it, heating only protects against frost.",
+          "outdoor_temperature": "Optional, but learning the room needs it.",
+          "outdoor_humidity": "Optional. Lets the planner warm the space before moist outside air arrives.",
+          "energy_sensors": "Optional kWh counters of the heaters. Make learning and costs more accurate.",
+          "weather": "Optional. The planner uses its hourly forecast."
+        }
+      },
+      "prices": {
+        "title": "Spot prices",
+        "description": "Where the planner gets hourly electricity prices.",
+        "data": {
+          "price_source": "Price source"
+        }
+      },
+      "nordpool": {
+        "title": "Nord Pool",
+        "description": "Prices from the official Nord Pool integration.",
+        "data": {
+          "nordpool_entry": "Nord Pool integration",
+          "nordpool_area": "Price area",
+          "currency": "Currency",
+          "vat_percent": "VAT"
+        },
+        "data_description": {
+          "nordpool_area": "For example FI, SE3 or DK1."
+        }
+      },
+      "price_entity": {
+        "title": "Price entity",
+        "description": "An entity whose attributes hold a list of prices.",
+        "data": {
+          "price_entity": "Price entity",
+          "price_format": "Format",
+          "vat_percent": "VAT to add",
+          "currency": "Currency"
+        },
+        "data_description": {
+          "vat_percent": "0 if the entity's prices already include VAT."
+        }
+      }
+    }
+  },
+  "selector": {
+    "price_source": {
+      "options": {
+        "nordpool_action": "Nord Pool integration",
+        "entity": "An entity with a price list",
+        "none": "No prices (frost and moisture protection only)"
+      }
+    },
+    "price_format": {
+      "options": {
+        "spot_heating_planner": "Spot Heating Planner format (c/kWh incl. VAT)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "mode": {
+        "name": "Mode",
+        "state": {
+          "sensor_fault": "Sensor fault",
+          "emergency": "Frost emergency",
+          "max_temp": "At maximum",
+          "calibrating": "Calibrating",
+          "override": "Override",
+          "frost": "Frost protection",
+          "humidity_critical": "Critical humidity",
+          "humidity": "Humidity",
+          "dew_point": "Dew point",
+          "preheat": "Preheating",
+          "price_ceiling": "Waiting for cheaper hour",
+          "idle": "Idle"
+        }
+      },
+      "next_heating": {
+        "name": "Next heating"
+      },
+      "planned_heating": {
+        "name": "Planned heating, next 24 h"
+      },
+      "planned_cost": {
+        "name": "Planned cost, next 24 h"
+      },
+      "heating_cost": {
+        "name": "Heating cost"
+      },
+      "coasting_hours": {
+        "name": "Can coast for"
+      },
+      "room_status": {
+        "name": "Room model",
+        "state": {
+          "learning": "Learning",
+          "learned": "Learned",
+          "manual": "Set by hand"
+        }
+      },
+      "heat_loss": {
+        "name": "Heat loss"
+      },
+      "heat_capacity": {
+        "name": "Heat capacity"
+      },
+      "max_rise": {
+        "name": "Heaters can hold above outside"
+      },
+      "half_life": {
+        "name": "Warmth half-life"
+      },
+      "heater_power": {
+        "name": "Heater power"
+      }
+    },
+    "binary_sensor": {
+      "heating": {
+        "name": "Heating"
+      },
+      "target_unreachable": {
+        "name": "Can't keep up"
+      },
+      "sensor_stuck": {
+        "name": "Indoor sensor stuck"
+      }
+    },
+    "number": {
+      "min_temperature": {
+        "name": "Minimum temperature"
+      },
+      "max_temperature": {
+        "name": "Maximum temperature"
+      },
+      "frost_limit": {
+        "name": "Frost limit"
+      },
+      "override_temperature": {
+        "name": "Override temperature"
+      },
+      "override_hours": {
+        "name": "Override length"
+      },
+      "humidity_target": {
+        "name": "Humidity target"
+      },
+      "humidity_target_max": {
+        "name": "Humidity target in the cold"
+      },
+      "dew_point_margin": {
+        "name": "Dew point margin"
+      },
+      "price_ceiling": {
+        "name": "Price ceiling"
+      },
+      "fixed_energy_cost": {
+        "name": "Fixed energy cost"
+      },
+      "heater_power": {
+        "name": "Heater power"
+      }
+    },
+    "switch": {
+      "control": {
+        "name": "Control heaters"
+      }
+    },
+    "button": {
+      "start_override": {
+        "name": "Start override"
+      },
+      "cancel_override": {
+        "name": "Cancel override"
+      },
+      "calibrate": {
+        "name": "Calibrate"
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_setting": {
+      "message": "That value contradicts the other settings: {problems}"
+    }
+  }
+}

@@ -9,6 +9,7 @@ from custom_components.spot_heating_planner.core.planner import (
     NO_OUTSIDE_DATA_T,
     outside_conditions,
     plan_hour,
+    summarize,
     thermostat,
 )
 
@@ -248,3 +249,33 @@ def test_thermostat_heats_for_critical_humidity_at_any_price() -> None:
     decision = thermostat(inp, CFG, heating=False)
     assert decision.heat
     assert decision.mode == "humidity_critical"
+
+
+# --- Summary for the dashboard -------------------------------------------------------
+
+
+def test_summary_counts_hours_cost_and_next_heating() -> None:
+    pattern = (CHEAP,) * 3 + (PEAK,) * 6 + (NORMAL,) * 15
+    plan = plan_hour(
+        inputs(indoor_temperature=7, outdoor_temperature=-10, price_pattern=pattern),
+        CFG,
+        HEATED_ROOM,
+    )
+    summary = summarize(plan, HEATED_ROOM, CFG, until=NOW + timedelta(hours=24))
+    heating = [h for h in plan.hours if h.minutes > 0]
+    assert summary.next_heating == heating[0].start
+    assert summary.heating_hours == pytest.approx(sum(h.minutes for h in heating) / 60)
+    expected = sum(
+        h.minutes / 60 * (h.price + CFG.prices.fixed_energy_cost) / 100 for h in heating
+    )
+    assert summary.cost == pytest.approx(expected)
+
+
+def test_summary_of_an_idle_plan() -> None:
+    plan = plan_hour(
+        inputs(indoor_temperature=10, outdoor_temperature=5), CFG, HEATED_ROOM
+    )
+    summary = summarize(plan, HEATED_ROOM, CFG, until=NOW + timedelta(hours=24))
+    assert summary.next_heating is None
+    assert summary.heating_hours == 0
+    assert summary.cost == 0

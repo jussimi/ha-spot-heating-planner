@@ -49,10 +49,18 @@ from ..const import (
     TOMORROW_PRICES_FROM_HOUR,
 )
 from ..core import calibration, humidity, learning, safety, sensors
-from ..core.config import Config
 from ..core.control import Decision, decide
-from ..core.planner import Inputs, Plan, plan_hour, thermostat
+from ..core.options import config_from_options
+from ..core.planner import (
+    Inputs,
+    Plan,
+    PlanSummary,
+    plan_hour,
+    summarize,
+    thermostat,
+)
 from ..core.steps import OpenStep, is_boundary
+from ..core.thermal import MINUTES_PER_HOUR
 from ..sources.forecast import fetch_forecast
 from ..sources.prices import (
     FORMATS,
@@ -70,10 +78,14 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
+    from ..core.config import Config
     from ..core.learning import RoomChoice, RoomEstimate
     from ..core.planner import ForecastPoint
 
 LOGGER = logging.getLogger(__name__)
+SUMMARY_HOURS = 24
+"""The dashboard's planned heating and cost cover this many hours."""
+CENTS_PER_UNIT = 100.0
 STUCK_CHECK_STEPS = 8
 """How many recent steps the stuck-sensor check looks at (2 hours)."""
 
@@ -140,6 +152,10 @@ class SpaceState:
     indoor_temperature: float | None
     indoor_humidity: float | None
     sensor_stuck: bool
+    enabled: bool
+    cost_total: float
+    summary: PlanSummary | None
+    """The plan over the next SUMMARY_HOURS, once the room is known."""
 
 
 @dataclass
@@ -171,7 +187,8 @@ class Space(DataUpdateCoordinator[SpaceState]):
         )
         self.entities = SpaceEntities.from_entry(dict(entry.data))
         self.prices_from = price_source(dict(entry.data))
-        self.cfg = cfg or Config()
+        self.entry = entry
+        self.cfg = cfg or config_from_options(entry.options)
         self._store = SpaceStore(hass, entry.entry_id)
         self._memory = Memory()
         self._smoothing = _Smoothing()
@@ -182,6 +199,8 @@ class Space(DataUpdateCoordinator[SpaceState]):
         self._plan: Plan | None = None
         self._step: OpenStep | None = None
         self._unsubscribe: Callable[[], None] | None = None
+        self._last_energy: float | None = None
+        self._heating = False
 
     # --- Lifecycle ----------------------------------------------------------
 
@@ -212,10 +231,11 @@ class Space(DataUpdateCoordinator[SpaceState]):
 
     # --- Commands from the entities ------------------------------------------
 
-    async def async_start_override(self, hours: float) -> None:
-        """Hold the override temperature for `hours` from now."""
+    async def async_start_override(self, hours: float | None = None) -> None:
+        """Hold the override temperature for `hours` (the setting if not given)."""
         now = dt_util.utcnow()
-        self._memory.override_until = now + timedelta(hours=hours)
+        length = self.cfg.limits.override_hours if hours is None else hours
+        self._memory.override_until = now + timedelta(hours=length)
         self._store.save_soon(self._memory)
         await self._replan(now)
         await self._act(now)
@@ -233,6 +253,23 @@ class Space(DataUpdateCoordinator[SpaceState]):
         now = dt_util.utcnow()
         self._schedule_calibration(now)
         await self._act(now)
+
+    async def async_set_option(self, key: str, value: float) -> None:
+        """Change one setting and keep it in the config entry's options.
+
+        Raises ConfigError, leaving everything as it was, if the new value
+        contradicts the other settings.
+        """
+        options = {**self.entry.options, key: value}
+        cfg = config_from_options(options)
+        self.hass.config_entries.async_update_entry(self.entry, options=options)
+        await self.async_set_config(cfg)
+
+    async def async_set_enabled(self, *, enabled: bool) -> None:
+        """Pause or resume switching the heaters; planning goes on either way."""
+        self._memory.enabled = enabled
+        self._store.save_soon(self._memory)
+        await self._act(dt_util.utcnow())
 
     async def async_set_config(self, cfg: Config) -> None:
         """New settings: relearn with them and plan again."""
@@ -255,13 +292,19 @@ class Space(DataUpdateCoordinator[SpaceState]):
         elif self._plan is None and self._room().heated_room is not None:
             await self._replan(now)
 
+        self._count_cost(now)
         decision = await self._act(now)
         self._count_minute(now, heating=decision.heat)
 
     async def _act(self, now: datetime) -> Decision:
-        """Decide, switch the heaters to match, and publish the new state."""
+        """Decide, switch the heaters to match, and publish the new state.
+
+        While paused, nothing is switched; the decision is still shown.
+        """
         decision = self._decide(now)
-        await self._switch_heaters(heat=decision.heat)
+        if self._memory.enabled:
+            await self._switch_heaters(heat=decision.heat)
+        self._heating = self._heaters_on()
         self.async_set_updated_data(self._snapshot(decision, now))
         return decision
 
@@ -456,6 +499,45 @@ class Space(DataUpdateCoordinator[SpaceState]):
                 domain, action, target={"entity_id": heater}, blocking=True
             )
 
+    # --- Cost ------------------------------------------------------------------------
+
+    def _count_cost(self, now: datetime) -> None:
+        """Add the minute that just ended to the heating cost.
+
+        Measured energy if there are meters, else the heaters' power while they
+        were on; priced at this hour's spot price plus the fixed costs.
+        """
+        energy_now = self._energy()
+        if energy_now is not None and self._last_energy is not None:
+            kwh = max(0.0, energy_now - self._last_energy)
+        elif self._heating:
+            kwh = self._heater_power() / MINUTES_PER_HOUR
+        else:
+            kwh = 0.0
+        self._last_energy = energy_now
+        price = self._price_at(now)
+        if kwh > 0 and price is not None:
+            cents = kwh * (price + self.cfg.prices.fixed_energy_cost)
+            self._memory.cost_total += cents / CENTS_PER_UNIT
+            self._store.save_soon(self._memory)
+
+    def _heater_power(self) -> float:
+        estimate = self._estimate
+        if estimate is not None:
+            return estimate.heated_room.heater_power_kw
+        return self.cfg.heaters.power_kw
+
+    def _price_at(self, now: datetime) -> float | None:
+        hour = now.replace(minute=0, second=0, microsecond=0)
+        return next((p for start, p in self._prices if start == hour), None)
+
+    def _summary(self, now: datetime) -> PlanSummary | None:
+        heated_room = self._room().heated_room
+        if self._plan is None or heated_room is None:
+            return None
+        until = now + timedelta(hours=SUMMARY_HOURS)
+        return summarize(self._plan, heated_room, self.cfg, until=until)
+
     def _snapshot(self, decision: Decision, now: datetime) -> SpaceState:
         return SpaceState(
             decision=decision,
@@ -467,4 +549,7 @@ class Space(DataUpdateCoordinator[SpaceState]):
             indoor_temperature=self._indoor_temperature(now),
             indoor_humidity=self._smoothing.indoor_humidity.value(now),
             sensor_stuck=self._sensor_stuck(),
+            enabled=self._memory.enabled,
+            cost_total=self._memory.cost_total,
+            summary=self._summary(now),
         )

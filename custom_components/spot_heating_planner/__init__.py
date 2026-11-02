@@ -1,21 +1,28 @@
 """Spot Heating Planner: frost and moisture protection heating on spot prices.
 
 Each config entry is one heated space. Its `Space` runs the planner every
-minute and its entities (added in a later part) follow it.
+minute and its entities follow it.
 """
 
 from typing import TYPE_CHECKING
+
+from homeassistant.const import Platform
 
 from .runtime.space import Space
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
-    from homeassistant.const import Platform
     from homeassistant.core import HomeAssistant
 
 type SpotHeatingConfigEntry = ConfigEntry[Space]
 
-PLATFORMS: list[Platform] = []
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SpotHeatingConfigEntry) -> bool:

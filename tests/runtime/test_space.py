@@ -7,20 +7,15 @@ from typing import Any
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.const import STATE_ON
+from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.spot_heating_planner.const import (
     CONF_CURRENCY,
-    CONF_ENERGY_SENSORS,
-    CONF_HEATERS,
-    CONF_INDOOR_HUMIDITY,
-    CONF_INDOOR_TEMPERATURE,
     CONF_NORDPOOL_AREA,
     CONF_NORDPOOL_ENTRY,
-    CONF_OUTDOOR_TEMPERATURE,
     CONF_PRICE_ENTITY,
     CONF_PRICE_FORMAT,
     CONF_PRICE_SOURCE,
@@ -29,66 +24,28 @@ from custom_components.spot_heating_planner.const import (
     PRICE_SOURCE_ENTITY,
     PRICE_SOURCE_NORDPOOL_ACTION,
 )
-from custom_components.spot_heating_planner.core.config import Config, ManualRoom
+from custom_components.spot_heating_planner.core.config import Config
 from custom_components.spot_heating_planner.runtime.space import Space, price_source
 from custom_components.spot_heating_planner.sources.prices import (
     FORMATS,
     AttributePrices,
     NordPoolAction,
 )
-
-HEATER = "switch.heater"
-ENERGY = "sensor.heater_energy"
-INDOOR = "sensor.indoor_temperature"
-INDOOR_HUMIDITY = "sensor.indoor_humidity"
-OUTDOOR = "sensor.outdoor_temperature"
-# A known room, so tests that need the planner don't wait for learning
-KNOWN_ROOM = ManualRoom(heat_loss_w=25.0, heat_capacity_kwh=0.56)
-
-
-def set_temperatures(hass: HomeAssistant, *, indoor: str, outdoor: str = "-10") -> None:
-    hass.states.async_set(INDOOR, indoor, {"unit_of_measurement": "°C"})
-    hass.states.async_set(OUTDOOR, outdoor, {"unit_of_measurement": "°C"})
-
-
-def fake_switch(hass: HomeAssistant) -> list[str]:
-    """A switch whose turn_on/turn_off just change its state; logs the calls."""
-    calls: list[str] = []
-
-    async def turn(call: ServiceCall) -> None:
-        calls.append(call.service)
-        state = STATE_ON if call.service == "turn_on" else STATE_OFF
-        entity_ids = call.data["entity_id"]
-        for entity_id in [entity_ids] if isinstance(entity_ids, str) else entity_ids:
-            hass.states.async_set(entity_id, state)
-
-    hass.states.async_set(HEATER, STATE_OFF)
-    hass.services.async_register("switch", "turn_on", turn)
-    hass.services.async_register("switch", "turn_off", turn)
-    return calls
-
-
-def config_entry(hass: HomeAssistant) -> MockConfigEntry:
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Garage",
-        data={
-            CONF_HEATERS: [HEATER],
-            CONF_ENERGY_SENSORS: [ENERGY],
-            CONF_INDOOR_TEMPERATURE: INDOOR,
-            CONF_INDOOR_HUMIDITY: INDOOR_HUMIDITY,
-            CONF_OUTDOOR_TEMPERATURE: OUTDOOR,
-        },
-    )
-    entry.add_to_hass(hass)
-    return entry
+from tests.fakes import (
+    HEATER,
+    INDOOR,
+    KNOWN_ROOM,
+    config_entry,
+    fake_space,
+    set_energy,
+    set_prices,
+    set_temperatures,
+)
 
 
 @pytest.fixture
 def switch_calls(hass: HomeAssistant) -> list[str]:
-    set_temperatures(hass, indoor="8")
-    hass.states.async_set(ENERGY, "100.0", {"unit_of_measurement": "kWh"})
-    return fake_switch(hass)
+    return fake_space(hass)
 
 
 async def started(hass: HomeAssistant, cfg: Config | None = None) -> Space:
@@ -288,4 +245,33 @@ async def test_old_steps_are_dropped_at_start(
     await space.async_start()
     assert space._memory.samples == []  # noqa: SLF001 - checking what was kept
     await space.async_stop()
+    del switch_calls
+
+
+# --- Cost and pausing ---------------------------------------------------------
+
+
+async def test_heating_cost_counts_measured_energy(
+    hass: HomeAssistant, switch_calls: list[str]
+) -> None:
+    space = await started(hass)  # calibrating: heaters on
+    set_prices(hass, [10.0] * 48)
+    await space.async_tick(minutes_later(1))
+    set_energy(hass, 100.5)
+    await space.async_tick(minutes_later(2))
+    # 0.5 kWh at 10 c spot + 8.5 c fixed
+    assert space.data.cost_total == pytest.approx(0.5 * (10.0 + 8.5) / 100)
+    await space.async_stop()
+    del switch_calls
+
+
+async def test_paused_space_leaves_the_heaters_alone(
+    hass: HomeAssistant, space: Space, switch_calls: list[str]
+) -> None:
+    assert heater_is_on(hass)  # calibrating
+    await space.async_set_enabled(enabled=False)
+    await space.async_tick(minutes_later(90))  # calibration would now coast
+    assert heater_is_on(hass)
+    assert space.data.decision.mode == "calibrating"
+    assert not space.data.enabled
     del switch_calls

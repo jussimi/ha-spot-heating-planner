@@ -1,7 +1,8 @@
 """What a space remembers across restarts, in Home Assistant's own storage.
 
 Kept in .storage/spot_heating_planner.<entry id>: the logged learning steps,
-a calibration run's start, and when a manual override ends.
+a calibration run's start, when a manual override ends, whether control is
+paused, and the heating cost so far.
 """
 
 from dataclasses import dataclass, field
@@ -31,6 +32,10 @@ class Memory:
     samples: list[StepSample] = field(default_factory=list)
     calibration_start: datetime | None = None
     override_until: datetime | None = None
+    enabled: bool = True
+    """Whether the space switches its heaters; off pauses control."""
+    cost_total: float = 0.0
+    """Heating cost so far, in currency units incl. fixed costs."""
 
 
 class SpaceStore:
@@ -66,6 +71,8 @@ def _to_json(memory: Memory) -> dict[str, Any]:
         "samples": [learning.sample_to_dict(s) for s in memory.samples],
         "calibration_start": _time_to_json(memory.calibration_start),
         "override_until": _time_to_json(memory.override_until),
+        "enabled": memory.enabled,
+        "cost_total": memory.cost_total,
     }
 
 
@@ -74,6 +81,8 @@ def _from_json(data: dict[str, Any]) -> Memory:
         samples=[learning.sample_from_dict(s) for s in data["samples"]],
         calibration_start=_time_from_json(data.get("calibration_start")),
         override_until=_time_from_json(data.get("override_until")),
+        enabled=bool(data.get("enabled", True)),
+        cost_total=float(data.get("cost_total", 0.0)),
     )
 
 

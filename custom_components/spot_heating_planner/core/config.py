@@ -43,6 +43,9 @@ class Limits:
     override_temperature: float = 15.0
     """Target while a manual override runs."""
 
+    override_hours: float = 3.0
+    """How long a manual override runs."""
+
     frost_limit: float = 1.0
     """Emergency: below this, heat at any price, until emergency_band above."""
 
@@ -71,6 +74,7 @@ class Limits:
                     self.override_temperature > self.frost_limit,
                     "override_temperature must be above frost_limit",
                 ),
+                (self.override_hours > 0, "override_hours must be positive"),
                 (
                     min(
                         self.margin,
