@@ -203,16 +203,16 @@ The heaters' power $P$ is the measured energy divided by the hours on.
 **How sure is it?** The scatter of the fit gives the covariance of $(a, c)$:
 
 $$
-\operatorname{Cov}(a, c) = \sigma^2\,(X^\top X)^{-1}, \qquad
+\mathrm{Cov}(a, c) = \sigma^2\,(X^\top X)^{-1}, \qquad
 \sigma^2 = \frac{\text{SSE}}{n - 2}
 $$
 
 and the delta method carries it to $UA$ and $C$. For any $f(a, c)$:
 
 $$
-\operatorname{Var}(f) \approx \left(\frac{\partial f}{\partial a}\right)^2 \operatorname{Var}(a)
-+ \left(\frac{\partial f}{\partial c}\right)^2 \operatorname{Var}(c)
-+ 2\,\frac{\partial f}{\partial a}\frac{\partial f}{\partial c}\operatorname{Cov}(a, c)
+\mathrm{Var}(f) \approx \left(\frac{\partial f}{\partial a}\right)^2 \mathrm{Var}(a)
++ \left(\frac{\partial f}{\partial c}\right)^2 \mathrm{Var}(c)
++ 2\,\frac{\partial f}{\partial a}\frac{\partial f}{\partial c}\mathrm{Cov}(a, c)
 $$
 
 The learned room is used once both $UA$ and $C$ are known to within 25 %
@@ -233,7 +233,7 @@ miss the model badly. Before the final fit, such steps are dropped:
 
 1. Fit, and compute each step's miss (residual) $r_i$.
 2. Estimate the spread robustly, from the median absolute deviation:
-   $\hat\sigma = 1.4826 \cdot \operatorname{median}\,|r_i - \operatorname{median}(r)|$.
+   $\hat\sigma = 1.4826 \cdot \mathrm{median}\,|r_i - \mathrm{median}(r)|$.
    For normally distributed misses this equals the standard deviation, but a
    few huge misses barely move it, unlike a plain RMS, which they would
    inflate enough to slip through.
